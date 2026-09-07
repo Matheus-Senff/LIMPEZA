@@ -11,10 +11,6 @@ export function Rodape() {
           <p className="max-w-xs text-sm text-tinta-50">
             Serviços domésticos com preço transparente e profissionais credenciados e segurados.
           </p>
-          <div className="flex items-center gap-2">
-            <span className="rounded-lg bg-verde-50 px-2.5 py-1 text-xs font-bold text-verde-700">4.8 ★</span>
-            <span className="text-xs text-tinta-50">avaliação média dos clientes</span>
-          </div>
         </div>
 
         <div>

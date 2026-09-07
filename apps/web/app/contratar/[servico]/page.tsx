@@ -40,13 +40,7 @@ export default async function ContratarPage({
       <Cabecalho />
       <main className="bg-tinta-5 pb-10">
         <div className="border-b border-tinta-20 bg-white">
-          <div className="container-app flex flex-wrap items-center justify-between gap-4 py-4">
-            <div className="flex items-center gap-3">
-              <span className="rounded-lg bg-verde-50 px-2.5 py-1 text-xs font-extrabold text-verde-700">4.8 ★</span>
-              <p className="text-sm text-tinta-50">
-                Mais de <b className="text-tinta">15 mil avaliações</b> de clientes reais
-              </p>
-            </div>
+          <div className="container-app flex justify-end py-4">
             <p className="text-xs font-semibold text-tinta-50">
               Pagamento no Pix ou cartão · Cancelamento grátis até 24h antes
             </p>
