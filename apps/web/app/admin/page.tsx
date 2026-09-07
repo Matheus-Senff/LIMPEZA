@@ -44,7 +44,7 @@ function PainelAdmin() {
   const [carregando, setCarregando] = useState(true);
 
   // simulador
-  const [regiao, setRegiao] = useState('SP-CAPITAL');
+  const [regiao, setRegiao] = useState('PR-SUL');
   const [servico, setServico] = useState('CLEANING');
   const [minutos, setMinutos] = useState(240);
   const [frequencia, setFrequencia] = useState<Frequency>('SINGLE');
@@ -107,7 +107,7 @@ function PainelAdmin() {
     });
   }, [dias, quandoIdx, servico, minutos, frequencia, rulesetSimulado]);
 
-  const regioes = Array.from(new Set([...regras.map((r) => r.region_code), 'SP-CAPITAL']));
+  const regioes = Array.from(new Set([...regras.map((r) => r.region_code), 'PR-SUL']));
 
   return (
     <main className="bg-tinta-5 pb-16">

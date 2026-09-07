@@ -105,12 +105,16 @@ export async function POST(req: Request) {
       price_cents: cotacao.price_cents,
       payout_cents: cotacao.payout_cents,
     })
-    .select('code')
+    .select('id, code')
     .single();
 
   if (erroPedido || !pedidoSalvo) {
     return NextResponse.json({ erro: 'falha_pedido', mensagem: erroPedido?.message }, { status: 422 });
   }
+
+  // Avisa na hora todo profissional que atende esse serviço na região —
+  // mercado pequeno, oferta aberta pra quem quiser pegar primeiro.
+  await cliente.rpc('fn_gerar_ofertas', { p_order_id: pedidoSalvo.id });
 
   return NextResponse.json({
     codigo: pedidoSalvo.code,
