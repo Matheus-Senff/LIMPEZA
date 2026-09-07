@@ -64,6 +64,40 @@ supabase db push
 supabase functions deploy quote
 ```
 
+## Aplicação web
+
+```
+apps/web/          Next.js 15 + Tailwind — cliente, profissional e backoffice
+scripts/           sync do motor de preço para os pontos de consumo
+```
+
+| Rota | O que é |
+|---|---|
+| `/` | Home: catálogo, como contratar, assistência 24h, planos, depoimentos |
+| `/contratar/[servico]` | Funil de 6 passos em acordeão, com resumo de preço fixo |
+| `/conta` | Área do cliente: serviços, assinatura, assistência, indicações |
+| `/profissional` | App do profissional: ofertas, agenda, ganhos + cadastro |
+| `/admin` | Backoffice: cobertura, regras ativas e simulador de preço/margem |
+| `/api/cobertura` · `/api/cotacao` · `/api/pedido` | Cotação e fechamento do pedido |
+
+```bash
+cd apps/web && npm install && npm run dev
+```
+
+Sem variáveis de ambiente o app continua funcionando: o funil cai para o ruleset
+local e as telas internas mostram estado vazio.
+
+### Deploy na Vercel
+
+Projeto `limpeza` (time BReeZic). Em **Settings**:
+
+1. **Git** → conectar o repositório `Matheus-Senff/LIMPEZA`, branch `main`.
+2. **Build & Development** → *Root Directory* = `apps/web`.
+3. **Environment Variables** → `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   (chave publicável, nunca a de service role).
+
+Depois disso, todo push na `main` publica automaticamente.
+
 ## Configuração
 
 Copie `.env.example` para `.env` e preencha. **Nunca** comite `.env`, chaves de service role,

@@ -1,0 +1,16 @@
+{
+  "name": "limpeza",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Plano Limpo — plataforma de serviços residenciais",
+  "scripts": {
+    "dev": "npm run dev --prefix apps/web",
+    "build": "npm run build --prefix apps/web",
+    "start": "npm run start --prefix apps/web",
+    "test": "npm test --prefix packages/pricing",
+    "sync:pricing": "node scripts/sync-pricing.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
