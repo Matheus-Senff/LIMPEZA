@@ -2,6 +2,8 @@
 .env
 .env.*
 !.env.example
+# valores publicaveis (vao para o browser de qualquer forma, protegidos por RLS)
+!.env.production
 *.pem
 *.key
 *.p12
