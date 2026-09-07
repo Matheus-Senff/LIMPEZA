@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { buscarPerfil, type Perfil, type PapelUsuario } from './perfil';
+import { buscarPapeis, buscarPerfil, type Perfil, type PapelUsuario } from './perfil';
 
 const PerfilContext = createContext<Perfil | null>(null);
 
@@ -16,7 +16,19 @@ export function GuardaPerfil({ papel, children }: { papel: PapelUsuario; childre
     (async () => {
       const p = await buscarPerfil();
       if (!ativo) return;
-      if (!p || p.role !== papel) {
+      if (!p) {
+        router.replace('/');
+        return;
+      }
+
+      // Um e-mail pode ter conta de cliente E de profissional ao mesmo
+      // tempo — o acesso depende de ter a linha correspondente, não do
+      // último papel gravado em profiles.role.
+      const permitido =
+        papel === 'admin' ? p.role === 'admin' : (await buscarPapeis(p.id))[papel === 'customer' ? 'cliente' : 'profissional'];
+
+      if (!ativo) return;
+      if (!permitido) {
         router.replace('/');
         return;
       }
