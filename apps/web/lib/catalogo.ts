@@ -8,8 +8,6 @@ export type ServiceCode =
   | 'FURNITURE_ASSEMBLY'
   | 'HOME_ASSISTANCE';
 
-export type Cor = 'azul' | 'verde' | 'vermelho' | 'amarelo';
-
 export interface Servico {
   code: ServiceCode;
   slug: string;
@@ -22,7 +20,6 @@ export interface Servico {
   minMinutos: number;
   sugeridoMinutos: number;
   maxMinutos: number;
-  cor: Cor;
   publico: 'lar' | 'empresa';
   incluso: string[];
   naoIncluso: string[];
@@ -42,7 +39,6 @@ export const SERVICOS: Servico[] = [
     minMinutos: 210,
     sugeridoMinutos: 240,
     maxMinutos: 480,
-    cor: 'azul',
     publico: 'lar',
     incluso: [
       'Varrer, aspirar e passar pano em todos os cômodos contratados',
@@ -71,7 +67,6 @@ export const SERVICOS: Servico[] = [
     minMinutos: 240,
     sugeridoMinutos: 360,
     maxMinutos: 600,
-    cor: 'verde',
     publico: 'lar',
     incluso: [
       'Tudo da Limpeza Padrão',
@@ -95,7 +90,6 @@ export const SERVICOS: Servico[] = [
     minMinutos: 120,
     sugeridoMinutos: 180,
     maxMinutos: 480,
-    cor: 'amarelo',
     publico: 'lar',
     incluso: [
       'Passar as peças separadas por você',
@@ -117,7 +111,6 @@ export const SERVICOS: Servico[] = [
     minMinutos: 120,
     sugeridoMinutos: 180,
     maxMinutos: 480,
-    cor: 'vermelho',
     publico: 'lar',
     incluso: [
       'Montagem com ferramentas próprias',
@@ -139,7 +132,6 @@ export const SERVICOS: Servico[] = [
     minMinutos: 240,
     sugeridoMinutos: 360,
     maxMinutos: 600,
-    cor: 'verde',
     publico: 'lar',
     incluso: [
       'Limpeza profunda com o imóvel vazio',
@@ -162,7 +154,6 @@ export const SERVICOS: Servico[] = [
     minMinutos: 360,
     sugeridoMinutos: 480,
     maxMinutos: 720,
-    cor: 'amarelo',
     publico: 'lar',
     incluso: [
       'Remoção de poeira fina de todas as superfícies',
@@ -184,7 +175,6 @@ export const SERVICOS: Servico[] = [
     minMinutos: 180,
     sugeridoMinutos: 240,
     maxMinutos: 600,
-    cor: 'azul',
     publico: 'empresa',
     incluso: [
       'Limpeza de estações de trabalho e áreas comuns',
@@ -206,7 +196,6 @@ export const SERVICOS: Servico[] = [
     minMinutos: 60,
     sugeridoMinutos: 60,
     maxMinutos: 240,
-    cor: 'vermelho',
     publico: 'lar',
     incluso: ['Visita técnica', 'Diagnóstico do problema', 'Reparo emergencial de pequeno porte'],
     naoIncluso: ['Peças e materiais', 'Obras estruturais', 'Projetos e ART'],
@@ -295,13 +284,6 @@ export const PLANOS = [
 ];
 
 export type FrequencyCode = (typeof PLANOS)[number]['code'];
-
-export const CORES: Record<Cor, { bg: string; texto: string; borda: string; solido: string }> = {
-  azul: { bg: 'bg-azul-50', texto: 'text-azul-700', borda: 'border-azul-200', solido: 'bg-azul-600' },
-  verde: { bg: 'bg-verde-50', texto: 'text-verde-700', borda: 'border-verde-100', solido: 'bg-verde-600' },
-  vermelho: { bg: 'bg-vermelho-50', texto: 'text-vermelho-700', borda: 'border-vermelho-100', solido: 'bg-vermelho-600' },
-  amarelo: { bg: 'bg-amarelo-50', texto: 'text-amarelo-700', borda: 'border-amarelo-100', solido: 'bg-amarelo-400' },
-};
 
 export const reais = (centavos: number) =>
   (centavos / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 });

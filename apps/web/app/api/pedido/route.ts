@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { clienteComToken, tokenDaRequisicao } from '@/lib/supabase';
 
 export const runtime = 'nodejs';
 
 /**
  * Passo 6: fecha o pedido a partir de uma cotação válida.
+ *
+ * O preço e o repasse usados aqui vêm da cotação assinada gravada em `quotes`
+ * (nunca do corpo da requisição) — o valor mostrado na tela é o valor cobrado.
  *
  * Pagamento SIMULADO nesta versão — nenhuma chave de gateway no projeto.
  * Quando o Pagar.me/Stripe entrar, só este arquivo muda:
@@ -18,9 +21,12 @@ export async function POST(req: Request) {
 
   const metodo = body.metodo === 'credit_card' ? 'credit_card' : 'pix';
   const codigo = Math.random().toString(36).slice(2, 10).toUpperCase();
+  const token = tokenDaRequisicao(req);
+  const cliente = token ? clienteComToken(token) : null;
 
-  if (!supabase || !body.quoteId) {
-    // Modo demonstração: devolve um pedido consistente sem tocar no banco.
+  if (!cliente || !body.quoteId) {
+    // Sem sessão autenticada ou sem banco configurado: devolve um pedido
+    // consistente sem gravar nada, para o funil continuar funcionando.
     return NextResponse.json({
       codigo,
       status: 'searching_professional',
@@ -29,14 +35,24 @@ export async function POST(req: Request) {
     });
   }
 
-  const { data: cotacao } = await supabase
+  const {
+    data: { user },
+  } = await cliente.auth.getUser(token!);
+  if (!user) {
+    return NextResponse.json({ erro: 'nao_autenticado' }, { status: 401 });
+  }
+
+  const { data: cotacao } = await cliente
     .from('quotes')
-    .select('id, service, frequency, minutes, addons, scheduled_at, price_cents, expires_at')
+    .select('id, service, frequency, minutes, addons, scheduled_at, price_cents, payout_cents, expires_at, consumed_at')
     .eq('id', body.quoteId)
     .maybeSingle();
 
   if (!cotacao) {
     return NextResponse.json({ erro: 'cotacao_nao_encontrada' }, { status: 404 });
+  }
+  if (cotacao.consumed_at) {
+    return NextResponse.json({ erro: 'cotacao_ja_usada' }, { status: 410 });
   }
   if (new Date(cotacao.expires_at) < new Date()) {
     return NextResponse.json(
@@ -44,15 +60,61 @@ export async function POST(req: Request) {
       { status: 410 },
     );
   }
+  if (!cotacao.scheduled_at) {
+    return NextResponse.json({ erro: 'sem_horario' }, { status: 422 });
+  }
 
-  // Sem sessão autenticada não há customer_id para amarrar o pedido:
-  // registramos a intenção e devolvemos o código para acompanhamento.
+  const endereco = body.endereco ?? {};
+
+  await cliente.from('customers').upsert({ id: user.id }, { onConflict: 'id', ignoreDuplicates: true });
+
+  const { data: enderecoSalvo, error: erroEndereco } = await cliente
+    .from('addresses')
+    .insert({
+      customer_id: user.id,
+      zipcode: String(endereco.cep ?? '').replace(/\D/g, ''),
+      street: endereco.rua ?? '',
+      number: endereco.numero ?? '',
+      complement: endereco.complemento || null,
+      city: endereco.cidade ?? '',
+      state: (endereco.estado ?? '').slice(0, 2),
+      home_type: endereco.homeType ?? 'APARTMENT',
+      bedrooms: Number(endereco.bedrooms ?? 2),
+      bathrooms: Number(endereco.bathrooms ?? 1),
+      access_notes: endereco.acesso || null,
+    })
+    .select('id')
+    .single();
+
+  if (erroEndereco || !enderecoSalvo) {
+    return NextResponse.json({ erro: 'falha_endereco', mensagem: erroEndereco?.message }, { status: 422 });
+  }
+
+  const { data: pedidoSalvo, error: erroPedido } = await cliente
+    .from('orders')
+    .insert({
+      customer_id: user.id,
+      address_id: enderecoSalvo.id,
+      quote_id: cotacao.id,
+      service: cotacao.service,
+      frequency: cotacao.frequency,
+      minutes: cotacao.minutes,
+      addons: cotacao.addons,
+      scheduled_at: cotacao.scheduled_at,
+      status: 'searching_professional',
+      price_cents: cotacao.price_cents,
+      payout_cents: cotacao.payout_cents,
+    })
+    .select('code')
+    .single();
+
+  if (erroPedido || !pedidoSalvo) {
+    return NextResponse.json({ erro: 'falha_pedido', mensagem: erroPedido?.message }, { status: 422 });
+  }
+
   return NextResponse.json({
-    codigo,
+    codigo: pedidoSalvo.code,
     status: 'searching_professional',
     metodo,
-    precoCentavos: cotacao.price_cents,
-    agendadoPara: cotacao.scheduled_at,
-    simulado: true,
   });
 }

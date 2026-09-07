@@ -1,68 +1,131 @@
 'use client';
 
-import Link from 'next/link';
-import { Cabecalho } from '@/components/Cabecalho';
-import { Rodape } from '@/components/Rodape';
+import { useEffect, useState } from 'react';
+import { usePerfil } from '@/lib/usePerfil';
+import { supabase } from '@/lib/supabase';
+import { horas, reais } from '@/lib/catalogo';
 
-export default function Profissional() {
+interface DadosProfissional {
+  accreditation_status: 'pending' | 'in_review' | 'approved' | 'suspended' | 'blocked';
+  rating_avg: number;
+  rating_count: number;
+  completed_orders: number;
+}
+
+interface Pedido {
+  id: string;
+  code: string;
+  service: string;
+  scheduled_at: string;
+  minutes: number;
+  status: string;
+  payout_cents: number;
+}
+
+const STATUS_CREDENCIAMENTO: Record<DadosProfissional['accreditation_status'], string> = {
+  pending: 'Cadastro em análise',
+  in_review: 'Documentos em verificação',
+  approved: 'Aprovado',
+  suspended: 'Suspenso',
+  blocked: 'Bloqueado',
+};
+
+export default function ProfissionalHome() {
+  const perfil = usePerfil();
+  const [dados, setDados] = useState<DadosProfissional | null>(null);
+  const [pedidos, setPedidos] = useState<Pedido[]>([]);
+  const [carregando, setCarregando] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      if (!supabase) {
+        setCarregando(false);
+        return;
+      }
+      const [prof, ord] = await Promise.all([
+        supabase
+          .from('professionals')
+          .select('accreditation_status, rating_avg, rating_count, completed_orders')
+          .eq('id', perfil.id)
+          .maybeSingle(),
+        supabase
+          .from('orders')
+          .select('id, code, service, scheduled_at, minutes, status, payout_cents')
+          .order('scheduled_at', { ascending: true })
+          .limit(20),
+      ]);
+      setDados((prof.data as DadosProfissional) ?? null);
+      setPedidos(ord.data ?? []);
+      setCarregando(false);
+    })();
+  }, [perfil.id]);
+
+  const primeiroNome = perfil.full_name.split(' ')[0];
+  const aprovado = dados?.accreditation_status === 'approved';
+
   return (
-    <>
-      <Cabecalho />
-      <main className="bg-tinta-5 pb-16">
-        <section className="border-b border-tinta-20 bg-tinta py-14 text-white">
-          <div className="container-app">
-            <p className="rotulo mb-2 text-amarelo-400">App do profissional</p>
-            <h1 className="max-w-2xl text-4xl font-extrabold leading-tight tracking-tight">
-              Sua agenda, seus ganhos e sua segurança em um só lugar
-            </h1>
-            <p className="mt-4 max-w-xl text-white/70">
-              Agenda própria, sem exclusividade, com seguro de acidentes pessoais durante o
-              deslocamento e o serviço.
-            </p>
-          </div>
-        </section>
+    <main className="container-app flex flex-col gap-8 py-10">
+      <h1 className="text-2xl font-bold tracking-tight">Olá, {primeiroNome}</h1>
 
-        <div className="container-app max-w-2xl py-10">
-          <section className="cartao p-8">
-            <h2 className="text-2xl font-extrabold tracking-tight">Cadastro de profissional</h2>
-            <p className="mt-2 text-sm text-tinta-50">
-              Cadastro simples, análise em até 3 dias úteis.
-            </p>
-            <form className="mt-6 flex flex-col gap-3" onSubmit={(e) => e.preventDefault()}>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <input className="campo" placeholder="Nome completo" aria-label="Nome completo" />
-                <input className="campo" placeholder="CPF" aria-label="CPF" />
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <input className="campo" placeholder="Celular com DDD" aria-label="Celular" />
-                <input className="campo" placeholder="CEP de onde você sai" aria-label="CEP" />
-              </div>
-              <fieldset className="rounded-xl border border-tinta-20 p-4">
-                <legend className="rotulo px-2">O que você atende</legend>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {['Limpeza padrão', 'Limpeza pesada', 'Passadoria', 'Montagem de móveis', 'Pós-obra', 'Comercial'].map((s) => (
-                    <label key={s} className="flex items-center gap-2 text-sm">
-                      <input type="checkbox" className="h-4 w-4 accent-[#1546c8]" />
-                      {s}
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-              <button className="btn-verde w-full">Enviar cadastro</button>
-              <p className="text-center text-xs text-tinta-50">
-                Ao enviar, você concorda em passar por checagem de antecedentes e verificação de documentos.
-              </p>
-            </form>
-          </section>
-          <p className="mt-6 text-center text-sm text-tinta-50">
-            Já é cadastrado?{' '}
-            <Link href="/autenticar" className="font-semibold text-azul-600">
-              Entrar no app
-            </Link>
+      {!carregando && dados && !aprovado && (
+        <div className="cartao p-5">
+          <p className="font-bold">{STATUS_CREDENCIAMENTO[dados.accreditation_status]}</p>
+          <p className="mt-1 text-sm text-tinta-50">
+            Assim que seu cadastro for aprovado, você passa a receber pedidos por aqui.
           </p>
         </div>
-      </main>
-      <Rodape />
-    </>
+      )}
+
+      {!carregando && dados && aprovado && (
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="cartao p-5">
+            <p className="rotulo">Nota</p>
+            <p className="text-2xl font-bold numero">{dados.rating_avg.toFixed(2)}</p>
+          </div>
+          <div className="cartao p-5">
+            <p className="rotulo">Avaliações</p>
+            <p className="text-2xl font-bold numero">{dados.rating_count}</p>
+          </div>
+          <div className="cartao p-5">
+            <p className="rotulo">Serviços concluídos</p>
+            <p className="text-2xl font-bold numero">{dados.completed_orders}</p>
+          </div>
+        </div>
+      )}
+
+      <section>
+        <h2 className="mb-4 text-xl font-bold tracking-tight">Seus pedidos</h2>
+        {carregando ? (
+          <p className="text-sm text-tinta-50">Carregando…</p>
+        ) : pedidos.length === 0 ? (
+          <div className="cartao p-8 text-center">
+            <p className="font-semibold">Nenhum pedido no momento</p>
+            <p className="mt-1 text-sm text-tinta-50">Pedidos atribuídos a você aparecem aqui.</p>
+          </div>
+        ) : (
+          <ul className="cartao flex flex-col divide-y divide-tinta-10 p-2">
+            {pedidos.map((p) => (
+              <li key={p.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
+                <div>
+                  <p className="font-bold numero">
+                    {new Date(p.scheduled_at).toLocaleString('pt-BR', {
+                      day: '2-digit',
+                      month: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </p>
+                  <p className="text-xs text-tinta-50 numero">
+                    #{p.code} · {horas(p.minutes)}
+                  </p>
+                </div>
+                <span className="rounded-full bg-tinta-5 px-3 py-1 text-xs font-bold text-tinta-70">{p.status}</span>
+                <span className="font-bold text-verde-700 numero">{reais(p.payout_cents)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </main>
   );
 }

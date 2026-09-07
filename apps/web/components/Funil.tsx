@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  CORES,
   OPCIONAIS,
   PLANOS,
   SERVICOS,
@@ -17,7 +16,8 @@ import { RULESET_PADRAO } from '@/lib/rulesetPadrao';
 import { priceGrid, quote } from '@/lib/pricing';
 import type { Ruleset } from '@/lib/pricing/types';
 import { faixaDaJanela, janelasDoDia, proximosDias, rotuloData } from '@/lib/agenda';
-import { Ilustracao } from './Marca';
+import { supabase } from '@/lib/supabase';
+import { IconeServico, type TipoIcone } from './Marca';
 
 type Passo = 1 | 2 | 3 | 4 | 5 | 6;
 type TipoLar = 'HOUSE' | 'APARTMENT' | 'STUDIO';
@@ -28,7 +28,21 @@ const TIPOS: { code: TipoLar; nome: string }[] = [
   { code: 'STUDIO', nome: 'Studio' },
 ];
 
-export function Funil({ servico, frequenciaInicial }: { servico: Servico; frequenciaInicial?: string }) {
+interface PerfilCliente {
+  nome: string;
+  email: string;
+  telefone: string;
+}
+
+export function Funil({
+  servico,
+  frequenciaInicial,
+  perfil,
+}: {
+  servico: Servico;
+  frequenciaInicial?: string;
+  perfil: PerfilCliente;
+}) {
   const router = useRouter();
 
   // ---------------------------------------------------------------- estado
@@ -37,13 +51,13 @@ export function Funil({ servico, frequenciaInicial }: { servico: Servico; freque
   const [tipoLar, setTipoLar] = useState<TipoLar>('APARTMENT');
   const [quartos, setQuartos] = useState(2);
   const [banheiros, setBanheiros] = useState(1);
-  const [email, setEmail] = useState('');
   const [cep, setCep] = useState('');
   const [erroCep, setErroCep] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
 
   const [ruleset, setRuleset] = useState<Ruleset>(RULESET_PADRAO);
   const [cidade, setCidade] = useState<string | null>(null);
+  const [uf, setUf] = useState<string | null>(null);
 
   const [opcionais, setOpcionais] = useState<string[]>([]);
   const [minutosBase, setMinutosBase] = useState(servico.sugeridoMinutos);
@@ -55,8 +69,8 @@ export function Funil({ servico, frequenciaInicial }: { servico: Servico; freque
   const [janela, setJanela] = useState<string | null>(null);
   const [verMaisDias, setVerMaisDias] = useState(false);
 
-  const [nome, setNome] = useState('');
-  const [telefone, setTelefone] = useState('');
+  const [nome, setNome] = useState(perfil.nome);
+  const [telefone, setTelefone] = useState(perfil.telefone);
   const [rua, setRua] = useState('');
   const [numero, setNumero] = useState('');
   const [complemento, setComplemento] = useState('');
@@ -164,7 +178,7 @@ export function Funil({ servico, frequenciaInicial }: { servico: Servico; freque
       const r = await fetch('/api/cobertura', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ zipcode: cep, service: servico.code, email }),
+        body: JSON.stringify({ zipcode: cep, service: servico.code, email: perfil.email }),
       }).then((x) => x.json());
 
       if (!r.coberto) {
@@ -173,6 +187,7 @@ export function Funil({ servico, frequenciaInicial }: { servico: Servico; freque
       }
       setRuleset(r.ruleset as Ruleset);
       setCidade(r.cidade ?? null);
+      setUf(r.estado ?? null);
       avancarPara(2, areaPasso2);
     } catch {
       setErroCep('Não conseguimos validar seu CEP agora. Tente de novo em instantes.');
@@ -184,9 +199,13 @@ export function Funil({ servico, frequenciaInicial }: { servico: Servico; freque
   async function finalizar() {
     setCarregando(true);
     try {
+      const { data: sessao } = (await supabase?.auth.getSession()) ?? { data: { session: null } };
+      const token = sessao.session?.access_token;
+      const authHeaders: Record<string, string> = token ? { authorization: `Bearer ${token}` } : {};
+
       const cotacao = await fetch('/api/cotacao', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', ...authHeaders },
         body: JSON.stringify({
           zipcode: cep,
           service: servico.code,
@@ -202,12 +221,23 @@ export function Funil({ servico, frequenciaInicial }: { servico: Servico; freque
 
       const r = await fetch('/api/pedido', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', ...authHeaders },
         body: JSON.stringify({
           quoteId: cotacao.quoteId,
           metodo,
-          cliente: { nome, email, telefone },
-          endereco: { cep, rua, numero, complemento, acesso },
+          cliente: { nome, email: perfil.email, telefone },
+          endereco: {
+            cep,
+            rua,
+            numero,
+            complemento,
+            acesso,
+            cidade,
+            estado: uf,
+            homeType: tipoLar,
+            bedrooms: quartos,
+            bathrooms: banheiros,
+          },
         }),
       }).then((x) => x.json());
 
@@ -254,19 +284,14 @@ export function Funil({ servico, frequenciaInicial }: { servico: Servico; freque
                   return (
                     <button
                       key={s.slug}
-                      onClick={() => router.push(`/contratar/${s.slug}`)}
+                      onClick={() => router.push(`/cliente/contratar/${s.slug}`)}
                       className={`relative w-[124px] shrink-0 overflow-hidden rounded-xl border-2 text-left transition ${
-                        ativo ? 'border-azul-600 shadow-cartao' : 'border-tinta-20 hover:border-azul-200'
+                        ativo ? 'border-tinta shadow-cartao' : 'border-tinta-10 hover:border-tinta-20'
                       }`}
                     >
-                      <span className="block h-16 overflow-hidden">
-                        <Ilustracao tipo={s.slug} />
+                      <span className="grid h-16 place-items-center">
+                        <IconeServico tipo={s.slug as TipoIcone} />
                       </span>
-                      {s.trazProdutos && (
-                        <span className="absolute left-0 top-0 bg-amarelo-400 px-1.5 py-0.5 text-[8px] font-extrabold uppercase">
-                          Inclui produtos
-                        </span>
-                      )}
                       <span className="block whitespace-pre-line px-2 py-2 text-[11px] font-bold leading-tight">
                         {s.nomeCurto}
                       </span>
@@ -293,7 +318,7 @@ export function Funil({ servico, frequenciaInicial }: { servico: Servico; freque
                     <ul className="flex flex-col gap-1.5">
                       {servico.naoIncluso.map((i) => (
                         <li key={i} className="flex gap-2 text-xs text-tinta-50">
-                          <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-vermelho-500" />
+                          <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-tinta-20" />
                           {i}
                         </li>
                       ))}
@@ -333,17 +358,8 @@ export function Funil({ servico, frequenciaInicial }: { servico: Servico; freque
               </div>
 
               <form onSubmit={verPreco} className="flex flex-col gap-3">
-                <h3 className="text-base font-bold">Um pouco sobre você</h3>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Qual seu e-mail?"
-                    className="campo"
-                    aria-label="E-mail"
-                  />
+                <h3 className="text-base font-bold">Qual o seu CEP?</h3>
+                <div className="max-w-xs">
                   <input
                     inputMode="numeric"
                     required
@@ -355,7 +371,7 @@ export function Funil({ servico, frequenciaInicial }: { servico: Servico; freque
                   />
                 </div>
                 {erroCep && (
-                  <p className="rounded-lg bg-vermelho-50 px-4 py-3 text-sm font-semibold text-vermelho-700">
+                  <p className="rounded-lg border border-tinta-20 bg-tinta-5 px-4 py-3 text-sm font-semibold text-tinta">
                     {erroCep}
                   </p>
                 )}
@@ -396,7 +412,7 @@ export function Funil({ servico, frequenciaInicial }: { servico: Servico; freque
                                 : [...atual, o.code],
                             )
                           }
-                          className="h-4 w-4 accent-[#1546c8]"
+                          className="h-4 w-4 accent-[#2563eb]"
                         />
                         <span className="font-semibold">{o.nome}</span>
                       </span>
@@ -483,7 +499,7 @@ export function Funil({ servico, frequenciaInicial }: { servico: Servico; freque
                           <span className="text-sm font-bold text-verde-700 numero">{reais(valor)}</span>
                         )}
                         {p.assistencia && (
-                          <span className="text-[11px] font-semibold text-vermelho-700">{p.assistencia}</span>
+                          <span className="text-[11px] font-semibold text-azul-700">{p.assistencia}</span>
                         )}
                       </button>
                     );
@@ -493,9 +509,9 @@ export function Funil({ servico, frequenciaInicial }: { servico: Servico; freque
 
               <div>
                 <h3 className="text-base font-bold">Escolha a data</h3>
-                <div className="mb-2 mt-1 flex items-center gap-2 rounded-lg bg-vermelho-50 px-3 py-2 text-xs font-semibold text-vermelho-700">
-                  <span className="h-2 w-2 rounded-full bg-vermelho-600" />
-                  Plano Agora: sua casa limpa ainda hoje, por um custo adicional.
+                <div className="mb-2 mt-1 flex items-center gap-2 rounded-lg bg-tinta-5 px-3 py-2 text-xs font-semibold text-tinta">
+                  <span className="h-2 w-2 rounded-full bg-tinta" />
+                  Serviço para hoje disponível por um custo adicional.
                 </div>
                 <div className="-mx-1 mt-3 flex gap-2 overflow-x-auto px-1 pb-2 sem-barra">
                   {dias.map((d) => {
@@ -511,7 +527,7 @@ export function Funil({ servico, frequenciaInicial }: { servico: Servico; freque
                           ativo
                             ? 'border-azul-600 bg-azul-600 text-white'
                             : 'border-tinta-20 hover:border-azul-200'
-                        } ${d.hoje && !ativo ? 'border-vermelho-100 bg-vermelho-50' : ''}`}
+                        } ${d.hoje && !ativo ? 'border-azul-100 bg-azul-50' : ''}`}
                       >
                         <span className="text-[11px] font-bold uppercase">{d.diaSemana}</span>
                         <span className="text-xl font-extrabold numero">{d.diaMes}</span>
@@ -542,7 +558,7 @@ export function Funil({ servico, frequenciaInicial }: { servico: Servico; freque
                     </span>
                   </div>
                   {grade.length === 0 ? (
-                    <p className="rounded-lg bg-amarelo-50 px-4 py-3 text-sm text-amarelo-700">
+                    <p className="rounded-lg border border-tinta-20 bg-tinta-5 px-4 py-3 text-sm text-tinta-70">
                       Não há mais janelas para este dia com {horas(minutosTotais)} de serviço. Escolha
                       outra data ou reduza as horas.
                     </p>
@@ -594,7 +610,6 @@ export function Funil({ servico, frequenciaInicial }: { servico: Servico; freque
                 <input className="campo" placeholder="Nome completo" value={nome} onChange={(e) => setNome(e.target.value)} aria-label="Nome completo" />
                 <input className="campo" placeholder="Celular com DDD" value={telefone} onChange={(e) => setTelefone(e.target.value)} aria-label="Celular" />
               </div>
-              <input className="campo" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="E-mail" aria-label="E-mail" />
               <p className="text-xs text-tinta-50">
                 Usamos o celular só para avisar sobre o serviço. O profissional fala com você pelo chat
                 do app — seu telefone nunca é exposto.
@@ -663,7 +678,7 @@ export function Funil({ servico, frequenciaInicial }: { servico: Servico; freque
                     name="metodo"
                     checked={metodo === m.code}
                     onChange={() => setMetodo(m.code)}
-                    className="mt-1 h-4 w-4 accent-[#1546c8]"
+                    className="mt-1 h-4 w-4 accent-[#2563eb]"
                   />
                   <span>
                     <span className="block font-bold">{m.titulo}</span>
@@ -672,9 +687,9 @@ export function Funil({ servico, frequenciaInicial }: { servico: Servico; freque
                 </label>
               ))}
 
-              <div className="rounded-xl bg-amarelo-50 px-4 py-3 text-xs font-semibold text-amarelo-700">
-                Ambiente de demonstração: nenhuma cobrança real é feita. O pedido é registrado e segue
-                para a busca de profissional.
+              <div className="rounded-xl bg-tinta-5 px-4 py-3 text-xs font-semibold text-tinta-70">
+                Pagamento simulado nesta versão: nenhuma cobrança real é feita. O pedido é registrado
+                de verdade e segue para a busca de profissional.
               </div>
 
               <button onClick={finalizar} disabled={carregando} className="btn-verde w-full">
@@ -689,9 +704,7 @@ export function Funil({ servico, frequenciaInicial }: { servico: Servico; freque
       <aside className="lg:sticky lg:top-24 lg:self-start">
         <div className="cartao flex flex-col gap-4 p-5">
           <div className="flex items-center gap-3">
-            <span className={`grid h-11 w-11 place-items-center rounded-xl ${CORES[servico.cor].bg}`}>
-              <span className={`h-5 w-5 rounded-full ${CORES[servico.cor].solido}`} />
-            </span>
+            <IconeServico tipo={servico.slug as TipoIcone} className="h-11 w-11" />
             <div>
               <p className="font-bold leading-tight">{servico.nome}</p>
               <p className="text-xs text-tinta-50 numero">
@@ -752,7 +765,7 @@ export function Funil({ servico, frequenciaInicial }: { servico: Servico; freque
               <span className="h-1.5 w-1.5 rounded-full bg-azul-600" /> Chat com o profissional pelo app
             </span>
             <span className="flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-amarelo-400" /> Cancelamento grátis até 24h antes
+              <span className="h-1.5 w-1.5 rounded-full bg-tinta-30" /> Cancelamento grátis até 24h antes
             </span>
           </div>
         </div>
@@ -850,8 +863,8 @@ function PedidoConfirmado({
         </div>
       </div>
       {pedido.simulado && (
-        <p className="rounded-lg bg-amarelo-50 px-4 py-2 text-xs font-semibold text-amarelo-700">
-          Demonstração: nenhuma cobrança foi feita e nenhum profissional foi acionado.
+        <p className="rounded-lg bg-tinta-5 px-4 py-2 text-xs font-semibold text-tinta-70">
+          Pagamento simulado: nenhuma cobrança foi feita nesta versão.
         </p>
       )}
       <div className="flex flex-wrap justify-center gap-3">

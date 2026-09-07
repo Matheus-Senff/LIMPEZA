@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase, tokenDaRequisicao } from '@/lib/supabase';
 import { RULESET_PADRAO } from '@/lib/rulesetPadrao';
 import { quote } from '@/lib/pricing';
 import type { Frequency, Ruleset, ServiceCode } from '@/lib/pricing/types';
@@ -24,6 +24,9 @@ interface Cobertura {
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ erro: 'json_invalido' }, { status: 400 });
+
+  const token = tokenDaRequisicao(req);
+  const usuarioId = token && supabase ? (await supabase.auth.getUser(token)).data.user?.id ?? null : null;
 
   const cep = String(body.zipcode ?? '').replace(/\D/g, '');
   const service = String(body.service ?? 'CLEANING') as ServiceCode;
@@ -88,6 +91,7 @@ export async function POST(req: Request) {
       const { data } = await supabase
         .from('quotes')
         .insert({
+          customer_id: usuarioId,
           service,
           frequency,
           zipcode: cep,
