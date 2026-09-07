@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-white text-tinta antialiased;
+  }
+  :focus-visible {
+    @apply outline-none ring-2 ring-azul-600 ring-offset-2 rounded-sm;
+  }
+  ::selection {
+    @apply bg-amarelo-100 text-tinta;
+  }
+}
+
+@layer components {
+  .container-app {
+    @apply mx-auto w-full max-w-6xl px-5;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3
+           text-sm font-bold uppercase tracking-wide transition
+           disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .btn-primario {
+    @apply btn bg-azul-600 text-white hover:bg-azul-700 active:scale-[.98];
+  }
+  .btn-verde {
+    @apply btn bg-verde-600 text-white hover:bg-verde-700 active:scale-[.98];
+  }
+  .btn-contorno {
+    @apply btn border-2 border-azul-600 text-azul-600 hover:bg-azul-50;
+  }
+  .rotulo {
+    @apply text-[11px] font-bold uppercase tracking-[.14em] text-tinta-50;
+  }
+  .cartao {
+    @apply rounded-card border border-tinta-20 bg-white shadow-cartao;
+  }
+  .campo {
+    @apply w-full rounded-xl border border-tinta-20 bg-white px-4 py-3 text-[15px]
+           placeholder:text-tinta-50 focus:border-azul-600 focus:outline-none
+           focus:ring-2 focus:ring-azul-100;
+  }
+  .numero {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* esconde a barra de rolagem dos carrosséis sem perder o gesto de arrastar */
+.sem-barra {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.sem-barra::-webkit-scrollbar {
+  display: none;
+}
