@@ -9,50 +9,20 @@ const PASSOS = [
   {
     n: '1º passo',
     titulo: 'Escolha o serviço, a data e a hora',
-    texto:
-      'Diga o que precisa e quantas horas quer contratar. Tem horário para hoje em várias regiões.',
+    texto: 'Diga o que precisa e quantas horas quer contratar.',
     cor: 'bg-azul-600',
   },
   {
     n: '2º passo',
     titulo: 'Escolha a forma de pagamento',
-    texto:
-      'No Pix, o pagamento acontece no momento do pedido. No cartão, a cobrança só entra depois do serviço realizado.',
+    texto: 'Pix cobra na hora. Cartão cobra depois do serviço concluído.',
     cor: 'bg-verde-600',
   },
   {
     n: '3º passo',
     titulo: 'Deixe o resto com a gente',
-    texto:
-      'Encontramos o profissional ideal e avisamos você com todos os detalhes. Acompanhe tudo pelo app.',
+    texto: 'Encontramos o profissional e avisamos você pelo app.',
     cor: 'bg-vermelho-600',
-  },
-];
-
-const DEPOIMENTOS = [
-  {
-    nome: 'Pedro I.',
-    desde: 'Cliente desde 2024',
-    texto:
-      'A praticidade de agendar e ter suporte com todos os envolvidos faz diferença. E o preço que aparece é o que eu pago.',
-  },
-  {
-    nome: 'Ana Paula J.',
-    desde: 'Cliente desde 2024',
-    texto:
-      'Acabou o estresse de ficar na mão com uma diarista e não ter substituto disponível. A assinatura resolveu isso.',
-  },
-  {
-    nome: 'Nágila S.',
-    desde: 'Cliente desde 2025',
-    texto:
-      'Cuidar da casa virou uma preocupação a menos na semana. Controlo tudo pelo aplicativo em um minuto.',
-  },
-  {
-    nome: 'Rodrigo L.',
-    desde: 'Cliente desde 2025',
-    texto:
-      'Uso há um tempo e sempre com ótimas profissionais. O chat antes do serviço ajuda a alinhar os detalhes.',
   },
 ];
 
@@ -72,23 +42,18 @@ export default function Home() {
         <section className="relative overflow-hidden border-b border-tinta-20 bg-tinta-5">
           <div className="container-app grid items-center gap-12 py-16 lg:grid-cols-[1.1fr_.9fr] lg:py-24">
             <div className="flex flex-col gap-6">
-              <span className="inline-flex w-fit items-center gap-2 rounded-full border border-azul-200 bg-white px-3 py-1.5 text-xs font-bold text-azul-700">
-                <span className="h-2 w-2 rounded-full bg-verde-500" />
-                Agenda aberta para hoje em São Paulo e Curitiba
-              </span>
               <h1 className="text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
                 Serviços domésticos com <span className="text-azul-600">praticidade</span> e{' '}
                 <span className="text-verde-600">qualidade</span>
               </h1>
               <p className="max-w-lg text-lg text-tinta-70">
                 Faxina, passadoria, montagem de móveis e assistência residencial com profissionais
-                credenciados, avaliados e segurados. O preço que aparece na tela é o preço cobrado.
+                credenciados e segurados. O preço que aparece na tela é o preço cobrado.
               </p>
               <ul className="flex flex-col gap-2.5">
                 {[
                   'Profissionais aprovados e segurados contra acidentes pessoais',
                   'Preço fechado antes de você criar conta',
-                  'Disponível até para daqui a algumas horas',
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-2.5 text-[15px] text-tinta-70">
                     <svg viewBox="0 0 20 20" className="mt-0.5 h-5 w-5 shrink-0 text-verde-600" aria-hidden="true">
@@ -110,13 +75,6 @@ export default function Home() {
               <div className="absolute -bottom-8 -right-4 h-28 w-28 rounded-full bg-azul-200/60 blur-2xl" aria-hidden="true" />
               <div className="relative overflow-hidden rounded-[28px] border border-tinta-20 bg-white shadow-flutuante">
                 <Ilustracao tipo="app" />
-              </div>
-              <div className="absolute -bottom-5 left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-2xl border border-tinta-20 bg-white px-4 py-3 shadow-cartao">
-                <span className="grid h-9 w-9 place-items-center rounded-full bg-verde-50 text-sm font-extrabold text-verde-700">4.8</span>
-                <span className="text-xs leading-tight text-tinta-50">
-                  <b className="block text-tinta">15 mil avaliações</b>
-                  de clientes reais
-                </span>
               </div>
             </div>
           </div>
@@ -156,11 +114,10 @@ export default function Home() {
                 Casa sempre limpa e assistida
               </h2>
               <p className="max-w-xl text-tinta-70">
-                Acione chaveiro, encanador, eletricista ou vidraceiro em emergências, sem custo
-                adicional. Assinantes têm socorro doméstico 24 horas por dia.
+                Chaveiro, encanador, eletricista ou vidraceiro em emergências, sem custo adicional.
               </p>
               <ul className="grid gap-3 sm:grid-cols-3">
-                {['Suporte imediato por telefone', 'Emergências 24h', 'Consultoria especializada'].map((b) => (
+                {['Suporte por telefone', 'Emergências 24h', 'Consultoria especializada'].map((b) => (
                   <li key={b} className="rounded-xl bg-white px-4 py-3 text-sm font-semibold">{b}</li>
                 ))}
               </ul>
@@ -183,7 +140,7 @@ export default function Home() {
             <p className="rotulo mb-2 text-azul-600">Assinaturas</p>
             <h2 className="mb-3 text-3xl font-extrabold tracking-tight sm:text-4xl">Conheça nossos planos</h2>
             <p className="mb-10 max-w-2xl text-tinta-50">
-              Quanto mais frequente o serviço, menor o valor da diária — e mais benefícios entram junto.
+              Quanto mais frequente o serviço, menor o valor da diária.
             </p>
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {PLANOS.map((p) => {
@@ -244,8 +201,7 @@ export default function Home() {
               Profissionais com benefícios de verdade
             </h2>
             <p className="text-tinta-50">
-              Trabalhamos em parceria com profissionais autônomos: agenda própria, sem exclusividade
-              e com uma estrutura que valoriza quem atende bem.
+              Profissionais autônomos, com agenda própria e sem exclusividade.
             </p>
           </div>
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -259,43 +215,13 @@ export default function Home() {
           <Link href="/profissional" className="btn-verde mt-10">Quero me cadastrar</Link>
         </section>
 
-        {/* ---------------------------------------------------- depoimentos */}
-        <section className="border-y border-tinta-20 bg-tinta-5 py-20">
-          <div className="container-app">
-            <p className="rotulo mb-2 text-azul-600">Sua satisfação em primeiro lugar</p>
-            <h2 className="mb-10 text-3xl font-extrabold tracking-tight sm:text-4xl">
-              O que dizem nossos clientes
-            </h2>
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {DEPOIMENTOS.map((d) => (
-                <blockquote key={d.nome} className="cartao flex flex-col gap-4 p-6">
-                  <div className="flex gap-0.5 text-amarelo-400" aria-label="5 estrelas">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <svg key={i} viewBox="0 0 20 20" className="h-4 w-4 fill-current" aria-hidden="true">
-                        <path d="M10 1.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L1.6 7.7l5.8-.8z" />
-                      </svg>
-                    ))}
-                  </div>
-                  <p className="flex-1 text-sm text-tinta-70">“{d.texto}”</p>
-                  <footer className="text-xs">
-                    <b className="block text-tinta">{d.nome}</b>
-                    <span className="text-tinta-50">{d.desde}</span>
-                  </footer>
-                </blockquote>
-              ))}
-            </div>
-          </div>
-        </section>
-
         {/* ---------------------------------------------------------- final */}
         <section className="container-app py-20">
           <div className="flex flex-col items-center gap-6 rounded-[28px] bg-azul-600 px-8 py-16 text-center text-white">
             <h2 className="max-w-2xl text-3xl font-extrabold tracking-tight sm:text-4xl">
               Veja quanto custa a sua faxina em menos de um minuto
             </h2>
-            <p className="max-w-xl text-white/80">
-              Sem cadastro, sem ligação e sem orçamento por WhatsApp. Informe o CEP e o preço aparece na hora.
-            </p>
+            <p className="max-w-xl text-white/80">Informe o CEP e o preço aparece na hora.</p>
             <Link href="/contratar/padrao" className="btn bg-white text-azul-700 hover:bg-amarelo-400 hover:text-tinta">
               Ver preço agora
             </Link>
