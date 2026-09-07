@@ -6,7 +6,6 @@ import { supabase } from '@/lib/supabase';
 import { horas, reais } from '@/lib/catalogo';
 
 interface DadosProfissional {
-  accreditation_status: 'pending' | 'in_review' | 'approved' | 'suspended' | 'blocked';
   rating_avg: number;
   rating_count: number;
   completed_orders: number;
@@ -21,14 +20,6 @@ interface Pedido {
   status: string;
   payout_cents: number;
 }
-
-const STATUS_CREDENCIAMENTO: Record<DadosProfissional['accreditation_status'], string> = {
-  pending: 'Cadastro em análise',
-  in_review: 'Documentos em verificação',
-  approved: 'Aprovado',
-  suspended: 'Suspenso',
-  blocked: 'Bloqueado',
-};
 
 export default function ProfissionalHome() {
   const perfil = usePerfil();
@@ -45,7 +36,7 @@ export default function ProfissionalHome() {
       const [prof, ord] = await Promise.all([
         supabase
           .from('professionals')
-          .select('accreditation_status, rating_avg, rating_count, completed_orders')
+          .select('rating_avg, rating_count, completed_orders')
           .eq('id', perfil.id)
           .maybeSingle(),
         supabase
@@ -61,22 +52,12 @@ export default function ProfissionalHome() {
   }, [perfil.id]);
 
   const primeiroNome = perfil.full_name.split(' ')[0];
-  const aprovado = dados?.accreditation_status === 'approved';
 
   return (
     <main className="container-app flex flex-col gap-8 py-10">
       <h1 className="text-2xl font-bold tracking-tight">Olá, {primeiroNome}</h1>
 
-      {!carregando && dados && !aprovado && (
-        <div className="cartao p-5">
-          <p className="font-bold">{STATUS_CREDENCIAMENTO[dados.accreditation_status]}</p>
-          <p className="mt-1 text-sm text-tinta-50">
-            Assim que seu cadastro for aprovado, você passa a receber pedidos por aqui.
-          </p>
-        </div>
-      )}
-
-      {!carregando && dados && aprovado && (
+      {!carregando && dados && (
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="cartao p-5">
             <p className="rotulo">Nota</p>
