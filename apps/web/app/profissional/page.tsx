@@ -42,6 +42,7 @@ export default function ProfissionalHome() {
         supabase
           .from('orders')
           .select('id, code, service, scheduled_at, minutes, status, payout_cents')
+          .eq('professional_id', perfil.id)
           .order('scheduled_at', { ascending: true })
           .limit(20),
       ]);
