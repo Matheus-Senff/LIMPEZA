@@ -1,7 +1,10 @@
-# Limpeza — Plataforma de Serviços Residenciais
+# Plano Limpo — Plataforma de Serviços Residenciais
 
 Marketplace de serviços domésticos sob demanda: app do cliente, app do profissional e backoffice,
 com **precificação dinâmica** calibrada em preços reais de mercado.
+
+**No ar:** https://plano-limpo-br-ee-zic.vercel.app
+Todo push na `main` publica automaticamente (projeto Vercel `plano-limpo`, root `apps/web`).
 
 Backend em **Supabase** (Postgres + Auth + RLS + Edge Functions).
 
@@ -89,14 +92,17 @@ local e as telas internas mostram estado vazio.
 
 ### Deploy na Vercel
 
-Projeto `limpeza` (time BReeZic). Em **Settings**:
+Projeto **`plano-limpo`** (time BReeZic), vinculado a este repositório, branch de produção `main`,
+Root Directory `apps/web`. A configuração de build vive no `vercel.json` — os caminhos são
+relativos ao Root Directory, porque é lá que a build roda.
 
-1. **Git** → conectar o repositório `Matheus-Senff/LIMPEZA`, branch `main`.
-2. **Build & Development** → *Root Directory* = `apps/web`.
-3. **Environment Variables** → `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   (chave publicável, nunca a de service role).
+As variáveis públicas do Supabase estão em `apps/web/.env.production`, versionado de propósito:
+`NEXT_PUBLIC_*` chega ao browser em qualquer app Supabase, e quem protege os dados é o RLS.
+A chave de service role não vive no repositório.
 
-Depois disso, todo push na `main` publica automaticamente.
+> O projeto antigo `limpeza` (domínio `limpeza-marketplace.vercel.app`) continua servindo outro
+> app e **não** está ligado a este repositório: a API da Vercel vincula um repositório a um único
+> projeto. Para reaproveitar aquele domínio, mova-o para `plano-limpo` pelo dashboard.
 
 ## Configuração
 
