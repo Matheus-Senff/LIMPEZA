@@ -7,9 +7,10 @@ import { Logo } from '@/components/Marca';
 import { supabase, supabaseConfigurado } from '@/lib/supabase';
 import { buscarPerfil, ROTA_POR_PAPEL, type PapelUsuario } from '@/lib/perfil';
 import { SERVICOS } from '@/lib/catalogo';
+import type { User } from '@supabase/supabase-js';
 
 type Papel = Extract<PapelUsuario, 'customer' | 'professional'>;
-type Etapa = 'papel' | 'dados' | 'codigo' | 'perfil';
+type Etapa = 'papel' | 'dados' | 'aguardando' | 'perfil';
 
 const SERVICOS_PROFISSIONAL = SERVICOS.filter((s) => s.code !== 'HOME_ASSISTANCE');
 
@@ -24,7 +25,6 @@ export default function Cadastrar() {
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [confirmarSenha, setConfirmarSenha] = useState('');
-  const [codigo, setCodigo] = useState('');
 
   const [telefone, setTelefone] = useState('');
   const [cpf, setCpf] = useState('');
@@ -33,6 +33,28 @@ export default function Cadastrar() {
   function escolherPapel(p: Papel) {
     setPapel(p);
     setEtapa('dados');
+  }
+
+  // Cliente não precisa de nenhum dado extra: entra direto na plataforma
+  // assim que o e-mail é confirmado. Profissional ainda passa pela etapa
+  // de perfil porque CPF é obrigatório para credenciamento.
+  async function finalizarSessao(usuario: User, p: Papel, nomeCompleto: string) {
+    if (p !== 'customer') {
+      setPapel(p);
+      setNome(nomeCompleto);
+      setEmail(usuario.email ?? '');
+      setEtapa('perfil');
+      return;
+    }
+    if (!supabase) return;
+    await supabase.from('profiles').upsert({
+      id: usuario.id,
+      role: 'customer',
+      full_name: nomeCompleto,
+      email: usuario.email,
+    });
+    await supabase.from('customers').upsert({ id: usuario.id });
+    router.replace(ROTA_POR_PAPEL.customer);
   }
 
   // Cobre quem já tem sessão ao abrir esta página: clicou no link do e-mail
@@ -51,13 +73,21 @@ export default function Cadastrar() {
       }
 
       const meta = usuario.user_metadata as { role?: Papel; full_name?: string };
-      if (meta.role) setPapel(meta.role);
-      if (meta.full_name) setNome(meta.full_name);
-      if (usuario.email) setEmail(usuario.email);
-      setEtapa('perfil');
+      await finalizarSessao(usuario, meta.role ?? 'customer', meta.full_name ?? '');
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Enquanto espera o clique no link: se a confirmação acontecer na mesma
+  // janela do navegador (outra aba), o Supabase sincroniza a sessão sozinho.
+  useEffect(() => {
+    if (etapa !== 'aguardando' || !supabase || !papel) return;
+    const { data: assinatura } = supabase.auth.onAuthStateChange((_evento, sessao) => {
+      if (sessao?.user) finalizarSessao(sessao.user, papel, nome);
+    });
+    return () => assinatura.subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [etapa, papel]);
 
   async function criarConta(e: React.FormEvent) {
     e.preventDefault();
@@ -71,7 +101,7 @@ export default function Cadastrar() {
       setErro('As senhas não coincidem.');
       return;
     }
-    if (!supabase) {
+    if (!supabase || !papel) {
       setErro('Cadastro indisponível: Supabase não está configurado neste ambiente.');
       return;
     }
@@ -92,48 +122,31 @@ export default function Cadastrar() {
       return;
     }
 
-    // Confirmação de e-mail desativada no projeto: a sessão já vem pronta.
-    if (data.session) {
+    if (data.session && data.user) {
+      await finalizarSessao(data.user, papel, nome);
       setCarregando(false);
-      setEtapa('perfil');
       return;
     }
 
-    // Sem sessão e sem erro é ambíguo: pode ser um cadastro novo (código a
+    // Sem sessão e sem erro é ambíguo: pode ser um cadastro novo (e-mail a
     // caminho) ou um e-mail que já existe e já está confirmado — por
     // segurança o Supabase não avisa qual dos dois é, e nesse segundo caso
     // nenhum e-mail novo é enviado. Tenta entrar com a senha informada: se
-    // funcionar, era o segundo caso e a conta já pode seguir para o perfil.
+    // funcionar, era o segundo caso e a conta já pode seguir adiante.
     const login = await supabase.auth.signInWithPassword({ email, password: senha });
     setCarregando(false);
-    if (login.data.session) {
-      setEtapa('perfil');
+    if (login.data.session && login.data.user) {
+      await finalizarSessao(login.data.user, papel, nome);
       return;
     }
-    setEtapa('codigo');
+    setEtapa('aguardando');
   }
 
-  async function confirmarCodigo(e: React.FormEvent) {
-    e.preventDefault();
-    setErro(null);
-    if (!supabase) return;
-
-    setCarregando(true);
-    const { error } = await supabase.auth.verifyOtp({ email, token: codigo, type: 'signup' });
-    setCarregando(false);
-
-    if (error) {
-      setErro('Código inválido ou expirado.');
-      return;
-    }
-    setEtapa('perfil');
-  }
-
-  async function reenviarCodigo() {
+  async function reenviarEmail() {
     if (!supabase) return;
     setErro(null);
     await supabase.auth.resend({ type: 'signup', email });
-    setErro('Enviamos um novo código para o seu e-mail.');
+    setErro('Reenviamos o e-mail de confirmação.');
   }
 
   function alternarServico(code: string) {
@@ -144,11 +157,11 @@ export default function Cadastrar() {
     e.preventDefault();
     setErro(null);
 
-    if (papel === 'professional' && cpf.replace(/\D/g, '').length !== 11) {
+    if (cpf.replace(/\D/g, '').length !== 11) {
       setErro('Informe um CPF válido.');
       return;
     }
-    if (papel === 'professional' && servicos.length === 0) {
+    if (servicos.length === 0) {
       setErro('Selecione ao menos um serviço que você atende.');
       return;
     }
@@ -165,7 +178,7 @@ export default function Cadastrar() {
 
     const { error: erroPerfil } = await supabase.from('profiles').upsert({
       id: usuario.id,
-      role: papel,
+      role: 'professional',
       full_name: nome,
       email,
       phone: telefone || null,
@@ -176,14 +189,11 @@ export default function Cadastrar() {
       return;
     }
 
-    const { error: erroPapel } =
-      papel === 'customer'
-        ? await supabase.from('customers').upsert({ id: usuario.id })
-        : await supabase.from('professionals').upsert({
-            id: usuario.id,
-            document: cpf.replace(/\D/g, ''),
-            skills: servicos,
-          });
+    const { error: erroPapel } = await supabase.from('professionals').upsert({
+      id: usuario.id,
+      document: cpf.replace(/\D/g, ''),
+      skills: servicos,
+    });
 
     setCarregando(false);
     if (erroPapel) {
@@ -191,7 +201,7 @@ export default function Cadastrar() {
       return;
     }
 
-    router.replace(ROTA_POR_PAPEL[papel as Papel]);
+    router.replace(ROTA_POR_PAPEL.professional);
   }
 
   return (
@@ -246,68 +256,54 @@ export default function Cadastrar() {
             </>
           )}
 
-          {etapa === 'codigo' && (
+          {etapa === 'aguardando' && (
             <>
               <h1 className="text-xl font-bold tracking-tight">Confirme seu e-mail</h1>
               <p className="mt-1 text-sm text-tinta-50">
-                Enviamos um código de 6 dígitos para <b className="text-tinta">{email}</b>.
+                Enviamos um link para <b className="text-tinta">{email}</b>. Clique nele para entrar
+                direto na plataforma.
               </p>
-              <form onSubmit={confirmarCodigo} className="mt-6 flex flex-col gap-3">
-                <input
-                  className="campo text-center text-lg tracking-[.3em] numero"
-                  inputMode="numeric"
-                  required
-                  maxLength={6}
-                  placeholder="000000"
-                  value={codigo}
-                  onChange={(e) => setCodigo(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  aria-label="Código de confirmação"
-                />
-                {erro && <p className="rounded-lg border border-tinta-20 bg-tinta-5 px-4 py-3 text-sm font-semibold text-tinta">{erro}</p>}
-                <button className="btn-primario w-full" disabled={carregando}>
-                  {carregando ? 'Confirmando…' : 'Confirmar'}
-                </button>
-                <button type="button" onClick={reenviarCodigo} className="text-center text-sm text-tinta-50">
-                  Reenviar código
-                </button>
-              </form>
+              {erro && (
+                <p className="mt-4 rounded-lg border border-tinta-20 bg-tinta-5 px-4 py-3 text-sm font-semibold text-tinta">
+                  {erro}
+                </p>
+              )}
+              <button onClick={reenviarEmail} className="btn-contorno mt-6 w-full">
+                Reenviar e-mail
+              </button>
             </>
           )}
 
           {etapa === 'perfil' && (
             <>
               <h1 className="text-xl font-bold tracking-tight">Últimos detalhes</h1>
+              <p className="mt-1 text-sm text-tinta-50">Faltam só esses dados para você atender.</p>
               <form onSubmit={completarPerfil} className="mt-6 flex flex-col gap-3">
                 <input className="campo" placeholder="Celular com DDD" value={telefone} onChange={(e) => setTelefone(e.target.value)} aria-label="Celular" />
-
-                {papel === 'professional' && (
-                  <>
-                    <input
-                      className="campo"
-                      required
-                      placeholder="CPF"
-                      value={cpf}
-                      onChange={(e) => setCpf(e.target.value.replace(/\D/g, '').slice(0, 11))}
-                      aria-label="CPF"
-                    />
-                    <fieldset className="rounded-xl border border-tinta-20 p-4">
-                      <legend className="rotulo px-2">O que você atende</legend>
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        {SERVICOS_PROFISSIONAL.map((s) => (
-                          <label key={s.code} className="flex items-center gap-2 text-sm">
-                            <input
-                              type="checkbox"
-                              className="h-4 w-4 accent-[#2563eb]"
-                              checked={servicos.includes(s.code)}
-                              onChange={() => alternarServico(s.code)}
-                            />
-                            {s.nome}
-                          </label>
-                        ))}
-                      </div>
-                    </fieldset>
-                  </>
-                )}
+                <input
+                  className="campo"
+                  required
+                  placeholder="CPF"
+                  value={cpf}
+                  onChange={(e) => setCpf(e.target.value.replace(/\D/g, '').slice(0, 11))}
+                  aria-label="CPF"
+                />
+                <fieldset className="rounded-xl border border-tinta-20 p-4">
+                  <legend className="rotulo px-2">O que você atende</legend>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {SERVICOS_PROFISSIONAL.map((s) => (
+                      <label key={s.code} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 accent-[#2563eb]"
+                          checked={servicos.includes(s.code)}
+                          onChange={() => alternarServico(s.code)}
+                        />
+                        {s.nome}
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
 
                 {erro && <p className="rounded-lg border border-tinta-20 bg-tinta-5 px-4 py-3 text-sm font-semibold text-tinta">{erro}</p>}
                 <button className="btn-primario w-full" disabled={carregando}>
