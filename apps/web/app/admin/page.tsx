@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Cabecalho } from '@/components/Cabecalho';
-import { Rodape } from '@/components/Rodape';
-import { supabase, supabaseConfigurado } from '@/lib/supabase';
+import { CabecalhoApp } from '@/components/CabecalhoApp';
+import { GuardaPerfil } from '@/lib/usePerfil';
+import { supabase } from '@/lib/supabase';
 import { SERVICOS, horas, reais } from '@/lib/catalogo';
 import { RULESET_PADRAO } from '@/lib/rulesetPadrao';
 import { quote } from '@/lib/pricing';
@@ -29,11 +29,19 @@ interface RegraAtiva {
 }
 
 export default function Admin() {
+  return (
+    <GuardaPerfil papel="admin">
+      <CabecalhoApp papel="admin" />
+      <PainelAdmin />
+    </GuardaPerfil>
+  );
+}
+
+function PainelAdmin() {
   const [coberturas, setCoberturas] = useState<Cobertura[]>([]);
   const [regras, setRegras] = useState<RegraAtiva[]>([]);
   const [leads, setLeads] = useState<{ total: number; sem_cobertura: number } | null>(null);
   const [carregando, setCarregando] = useState(true);
-  const [adminLogado, setAdminLogado] = useState(false);
 
   // simulador
   const [regiao, setRegiao] = useState('SP-CAPITAL');
@@ -48,9 +56,6 @@ export default function Admin() {
         setCarregando(false);
         return;
       }
-      const { data: sessao } = await supabase.auth.getSession();
-      setAdminLogado(Boolean(sessao.session));
-
       const [c, r, l] = await Promise.all([
         supabase.from('coverage_areas').select('*').order('region_code'),
         supabase.from('pricing_rulesets').select('id, region_code, service, version, rules').eq('active', true),
@@ -58,8 +63,7 @@ export default function Admin() {
       ]);
       setCoberturas(c.data ?? []);
       setRegras((r.data as RegraAtiva[]) ?? []);
-      // Sem sessão de admin o RLS devolve lista vazia — mostrar 0 seria mentira.
-      if (sessao.session && l.data) {
+      if (l.data) {
         setLeads({
           total: l.data.length,
           sem_cobertura: l.data.filter((x: { covered: boolean }) => !x.covered).length,
@@ -106,210 +110,175 @@ export default function Admin() {
   const regioes = Array.from(new Set([...regras.map((r) => r.region_code), 'SP-CAPITAL']));
 
   return (
-    <>
-      <Cabecalho />
-      <main className="bg-tinta-5 pb-16">
-        <div className="container-app py-10">
-          <p className="rotulo mb-1 text-azul-600">Backoffice</p>
-          <h1 className="mb-8 text-3xl font-extrabold tracking-tight">Operação Plano Limpo</h1>
+    <main className="bg-tinta-5 pb-16">
+      <div className="container-app py-10">
+        <p className="rotulo mb-1 text-tinta-50">Backoffice</p>
+        <h1 className="mb-8 text-2xl font-bold tracking-tight">Operação Plano Limpo</h1>
 
-          {supabaseConfigurado && !adminLogado && !carregando && (
-            <p className="mb-6 rounded-xl bg-azul-50 px-4 py-3 text-sm text-azul-700">
-              Você está vendo o backoffice sem sessão de administrador. Cobertura, regras de preço e
-              simulador funcionam; leads e pedidos ficam ocultos pelo RLS até você{' '}
-              <a href="/autenticar" className="font-bold underline">
-                entrar com uma conta admin
-              </a>
-              .
-            </p>
-          )}
+        <div className="mb-8 grid gap-4 sm:grid-cols-3">
+          <Metrica rotulo="Leads captados" valor={carregando ? '…' : leads ? String(leads.total) : '—'} />
+          <Metrica
+            rotulo="Leads fora de cobertura"
+            valor={carregando ? '…' : leads ? String(leads.sem_cobertura) : '—'}
+            nota="cada um é uma cidade pedindo para ser aberta"
+          />
+          <Metrica rotulo="Regras de preço ativas" valor={carregando ? '…' : String(regras.length)} />
+        </div>
 
-          {!supabaseConfigurado && (
-            <p className="mb-6 rounded-xl bg-amarelo-50 px-4 py-3 text-sm font-semibold text-amarelo-700">
-              Supabase não configurado neste ambiente: os painéis abaixo mostram as regras locais e o
-              simulador funciona normalmente.
-            </p>
-          )}
+        {/* ------------------------------------------------- simulador */}
+        <section className="cartao mb-6 p-6">
+          <h2 className="text-lg font-bold">Simulador de preço</h2>
+          <p className="mb-5 text-sm text-tinta-50">Mesmo motor que roda no funil.</p>
 
-          <div className="mb-8 grid gap-4 sm:grid-cols-3">
-            <Metrica
-              rotulo="Leads captados"
-              valor={carregando ? '…' : leads ? String(leads.total) : '—'}
-              cor="text-azul-700"
-              nota={!carregando && !leads ? 'entre como admin para ver' : undefined}
-            />
-            <Metrica
-              rotulo="Leads fora de cobertura"
-              valor={carregando ? '…' : leads ? String(leads.sem_cobertura) : '—'}
-              cor="text-vermelho-700"
-              nota={
-                !carregando && !leads
-                  ? 'entre como admin para ver'
-                  : 'cada um é uma cidade pedindo para ser aberta'
-              }
-            />
-            <Metrica rotulo="Regras de preço ativas" valor={carregando ? '…' : String(regras.length)} cor="text-verde-700" />
+          <div className="mb-5 grid gap-3 sm:grid-cols-4">
+            <label className="flex flex-col gap-1">
+              <span className="rotulo">Região</span>
+              <select className="campo" value={regiao} onChange={(e) => setRegiao(e.target.value)}>
+                {regioes.map((r) => (
+                  <option key={r}>{r}</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="rotulo">Serviço</span>
+              <select className="campo" value={servico} onChange={(e) => setServico(e.target.value)}>
+                {SERVICOS.map((s) => (
+                  <option key={s.code} value={s.code}>
+                    {s.nome}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="rotulo">Duração</span>
+              <select className="campo" value={minutos} onChange={(e) => setMinutos(Number(e.target.value))}>
+                {[210, 240, 300, 360, 420, 480].map((m) => (
+                  <option key={m} value={m}>
+                    {horas(m)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="rotulo">Modalidade</span>
+              <select
+                className="campo"
+                value={frequencia}
+                onChange={(e) => setFrequencia(e.target.value as Frequency)}
+              >
+                <option value="SINGLE">Diária única</option>
+                <option value="WEEKLY">Semanal</option>
+                <option value="BIWEEKLY">Quinzenal</option>
+                <option value="MONTHLY">Mensal</option>
+              </select>
+            </label>
           </div>
 
-          {/* ------------------------------------------------- simulador */}
-          <section className="cartao mb-6 p-6">
-            <h2 className="text-lg font-bold">Simulador de preço</h2>
-            <p className="mb-5 text-sm text-tinta-50">
-              Mesmo motor que roda no funil. Antes de publicar uma nova regra, veja o que ela faz com
-              o preço, o repasse e a margem.
-            </p>
+          <div className="mb-5 flex flex-wrap gap-2">
+            {dias.map((d, i) => (
+              <button
+                key={d.iso}
+                onClick={() => setQuandoIdx(i)}
+                className={`rounded-full border-2 px-4 py-1.5 text-xs font-bold transition ${
+                  quandoIdx === i ? 'border-tinta bg-tinta text-white' : 'border-tinta-20 text-tinta-50'
+                }`}
+              >
+                {d.hoje ? 'hoje' : `${d.diaSemana} ${d.diaMes}`}
+              </button>
+            ))}
+          </div>
 
-            <div className="mb-5 grid gap-3 sm:grid-cols-4">
-              <label className="flex flex-col gap-1">
-                <span className="rotulo">Região</span>
-                <select className="campo" value={regiao} onChange={(e) => setRegiao(e.target.value)}>
-                  {regioes.map((r) => (
-                    <option key={r}>{r}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="rotulo">Serviço</span>
-                <select className="campo" value={servico} onChange={(e) => setServico(e.target.value)}>
-                  {SERVICOS.map((s) => (
-                    <option key={s.code} value={s.code}>
-                      {s.nome}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="rotulo">Duração</span>
-                <select className="campo" value={minutos} onChange={(e) => setMinutos(Number(e.target.value))}>
-                  {[210, 240, 300, 360, 420, 480].map((m) => (
-                    <option key={m} value={m}>
-                      {horas(m)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="rotulo">Modalidade</span>
-                <select
-                  className="campo"
-                  value={frequencia}
-                  onChange={(e) => setFrequencia(e.target.value as Frequency)}
-                >
-                  <option value="SINGLE">Diária única</option>
-                  <option value="WEEKLY">Semanal</option>
-                  <option value="BIWEEKLY">Quinzenal</option>
-                  <option value="MONTHLY">Mensal</option>
-                </select>
-              </label>
-            </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-tinta-20 text-left">
+                  <th className="py-2 pr-4 rotulo">Janela</th>
+                  <th className="py-2 pr-4 rotulo">Preço</th>
+                  <th className="py-2 pr-4 rotulo">Repasse</th>
+                  <th className="py-2 pr-4 rotulo">Margem</th>
+                  <th className="py-2 rotulo">Composição</th>
+                </tr>
+              </thead>
+              <tbody>
+                {simulacao.map((s) => (
+                  <tr key={s.hora} className="border-b border-tinta-10 last:border-0">
+                    <td className="py-3 pr-4 font-bold numero">{s.hora}</td>
+                    {'erro' in s ? (
+                      <td colSpan={4} className="py-3 text-xs text-tinta-50">
+                        {s.erro}
+                      </td>
+                    ) : (
+                      <>
+                        <td className="py-3 pr-4 font-bold text-verde-700 numero">{reais(s.preco!)}</td>
+                        <td className="py-3 pr-4 numero">{reais(s.repasse!)}</td>
+                        <td className="py-3 pr-4 numero">{Math.round(s.margem! * 100)}%</td>
+                        <td className="py-3 text-xs text-tinta-50">
+                          {s.quebra!
+                            .filter((b) => b.factor && b.factor !== 1)
+                            .map((b) => `${b.label} ×${b.factor}`)
+                            .join(' · ') || 'sem multiplicadores'}
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
 
-            <div className="mb-5 flex flex-wrap gap-2">
-              {dias.map((d, i) => (
-                <button
-                  key={d.iso}
-                  onClick={() => setQuandoIdx(i)}
-                  className={`rounded-full border-2 px-4 py-1.5 text-xs font-bold transition ${
-                    quandoIdx === i ? 'border-azul-600 bg-azul-600 text-white' : 'border-tinta-20 text-tinta-50'
-                  }`}
-                >
-                  {d.hoje ? 'hoje' : `${d.diaSemana} ${d.diaMes}`}
-                </button>
-              ))}
-            </div>
-
+        {/* -------------------------------------------------- cobertura */}
+        <section className="cartao p-6">
+          <h2 className="mb-4 text-lg font-bold">Cobertura por CEP</h2>
+          {carregando ? (
+            <p className="text-sm text-tinta-50">Carregando…</p>
+          ) : coberturas.length === 0 ? (
+            <p className="text-sm text-tinta-50">Nenhuma faixa cadastrada neste ambiente.</p>
+          ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-tinta-20 text-left">
-                    <th className="py-2 pr-4 rotulo">Janela</th>
-                    <th className="py-2 pr-4 rotulo">Preço</th>
-                    <th className="py-2 pr-4 rotulo">Repasse</th>
-                    <th className="py-2 pr-4 rotulo">Margem</th>
-                    <th className="py-2 rotulo">Composição</th>
+                    <th className="py-2 pr-4 rotulo">Região</th>
+                    <th className="py-2 pr-4 rotulo">Cidade</th>
+                    <th className="py-2 pr-4 rotulo">Faixa de CEP</th>
+                    <th className="py-2 rotulo">Estado</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {simulacao.map((s) => (
-                    <tr key={s.hora} className="border-b border-tinta-10 last:border-0">
-                      <td className="py-3 pr-4 font-bold numero">{s.hora}</td>
-                      {'erro' in s ? (
-                        <td colSpan={4} className="py-3 text-xs text-vermelho-700">
-                          {s.erro}
-                        </td>
-                      ) : (
-                        <>
-                          <td className="py-3 pr-4 font-bold text-verde-700 numero">{reais(s.preco!)}</td>
-                          <td className="py-3 pr-4 numero">{reais(s.repasse!)}</td>
-                          <td className="py-3 pr-4 numero">{Math.round(s.margem! * 100)}%</td>
-                          <td className="py-3 text-xs text-tinta-50">
-                            {s.quebra!
-                              .filter((b) => b.factor && b.factor !== 1)
-                              .map((b) => `${b.label} ×${b.factor}`)
-                              .join(' · ') || 'sem multiplicadores'}
-                          </td>
-                        </>
-                      )}
+                  {coberturas.map((c) => (
+                    <tr key={c.id} className="border-b border-tinta-10 last:border-0">
+                      <td className="py-3 pr-4 font-semibold">{c.region_code}</td>
+                      <td className="py-3 pr-4">{c.city}</td>
+                      <td className="py-3 pr-4 numero">
+                        {c.zip_start} — {c.zip_end}
+                      </td>
+                      <td className="py-3">
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                            c.active ? 'bg-verde-50 text-verde-700' : 'bg-tinta-10 text-tinta-50'
+                          }`}
+                        >
+                          {c.state} · {c.active ? 'ativa' : 'inativa'}
+                        </span>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          </section>
-
-          {/* -------------------------------------------------- cobertura */}
-          <section className="cartao p-6">
-            <h2 className="mb-4 text-lg font-bold">Cobertura por CEP</h2>
-            {carregando ? (
-              <p className="text-sm text-tinta-50">Carregando…</p>
-            ) : coberturas.length === 0 ? (
-              <p className="text-sm text-tinta-50">Nenhuma faixa cadastrada neste ambiente.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-tinta-20 text-left">
-                      <th className="py-2 pr-4 rotulo">Região</th>
-                      <th className="py-2 pr-4 rotulo">Cidade</th>
-                      <th className="py-2 pr-4 rotulo">Faixa de CEP</th>
-                      <th className="py-2 rotulo">Estado</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {coberturas.map((c) => (
-                      <tr key={c.id} className="border-b border-tinta-10 last:border-0">
-                        <td className="py-3 pr-4 font-semibold">{c.region_code}</td>
-                        <td className="py-3 pr-4">{c.city}</td>
-                        <td className="py-3 pr-4 numero">
-                          {c.zip_start} — {c.zip_end}
-                        </td>
-                        <td className="py-3">
-                          <span
-                            className={`rounded-full px-2.5 py-1 text-xs font-bold ${
-                              c.active ? 'bg-verde-50 text-verde-700' : 'bg-tinta-10 text-tinta-50'
-                            }`}
-                          >
-                            {c.state} · {c.active ? 'ativa' : 'inativa'}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-        </div>
-      </main>
-      <Rodape />
-    </>
+          )}
+        </section>
+      </div>
+    </main>
   );
 }
 
-function Metrica({ rotulo, valor, cor, nota }: { rotulo: string; valor: string; cor: string; nota?: string }) {
+function Metrica({ rotulo, valor, nota }: { rotulo: string; valor: string; nota?: string }) {
   return (
     <div className="cartao p-5">
       <p className="rotulo">{rotulo}</p>
-      <p className={`text-3xl font-extrabold numero ${cor}`}>{valor}</p>
+      <p className="text-2xl font-bold numero">{valor}</p>
       {nota && <p className="mt-1 text-xs text-tinta-50">{nota}</p>}
     </div>
   );
