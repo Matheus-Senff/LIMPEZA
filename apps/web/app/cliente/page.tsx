@@ -39,12 +39,13 @@ export default function ClienteHome() {
       const { data } = await supabase
         .from('orders')
         .select('id, code, service, scheduled_at, minutes, status, price_cents')
+        .eq('customer_id', perfil.id)
         .order('scheduled_at', { ascending: true })
         .limit(20);
       setPedidos(data ?? []);
       setCarregando(false);
     })();
-  }, []);
+  }, [perfil.id]);
 
   const primeiroNome = perfil.full_name.split(' ')[0];
 
