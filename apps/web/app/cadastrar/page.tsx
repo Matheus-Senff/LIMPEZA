@@ -1,11 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Logo } from '@/components/Marca';
 import { supabase, supabaseConfigurado } from '@/lib/supabase';
-import { ROTA_POR_PAPEL, type PapelUsuario } from '@/lib/perfil';
+import { buscarPerfil, ROTA_POR_PAPEL, type PapelUsuario } from '@/lib/perfil';
 import { SERVICOS } from '@/lib/catalogo';
 
 type Papel = Extract<PapelUsuario, 'customer' | 'professional'>;
@@ -35,6 +35,30 @@ export default function Cadastrar() {
     setEtapa('dados');
   }
 
+  // Cobre quem já tem sessão ao abrir esta página: clicou no link do e-mail
+  // de confirmação, ou voltou depois de já ter confirmado antes.
+  useEffect(() => {
+    (async () => {
+      if (!supabase) return;
+      const { data: sessao } = await supabase.auth.getSession();
+      const usuario = sessao.session?.user;
+      if (!usuario) return;
+
+      const perfil = await buscarPerfil();
+      if (perfil) {
+        router.replace(ROTA_POR_PAPEL[perfil.role]);
+        return;
+      }
+
+      const meta = usuario.user_metadata as { role?: Papel; full_name?: string };
+      if (meta.role) setPapel(meta.role);
+      if (meta.full_name) setNome(meta.full_name);
+      if (usuario.email) setEmail(usuario.email);
+      setEtapa('perfil');
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function criarConta(e: React.FormEvent) {
     e.preventDefault();
     setErro(null);
@@ -56,17 +80,33 @@ export default function Cadastrar() {
     const { data, error } = await supabase.auth.signUp({
       email,
       password: senha,
-      options: { data: { role: papel, full_name: nome } },
+      options: {
+        data: { role: papel, full_name: nome },
+        emailRedirectTo: `${window.location.origin}/cadastrar`,
+      },
     });
-    setCarregando(false);
 
     if (error) {
+      setCarregando(false);
       setErro(error.message);
       return;
     }
 
     // Confirmação de e-mail desativada no projeto: a sessão já vem pronta.
     if (data.session) {
+      setCarregando(false);
+      setEtapa('perfil');
+      return;
+    }
+
+    // Sem sessão e sem erro é ambíguo: pode ser um cadastro novo (código a
+    // caminho) ou um e-mail que já existe e já está confirmado — por
+    // segurança o Supabase não avisa qual dos dois é, e nesse segundo caso
+    // nenhum e-mail novo é enviado. Tenta entrar com a senha informada: se
+    // funcionar, era o segundo caso e a conta já pode seguir para o perfil.
+    const login = await supabase.auth.signInWithPassword({ email, password: senha });
+    setCarregando(false);
+    if (login.data.session) {
       setEtapa('perfil');
       return;
     }
@@ -123,7 +163,7 @@ export default function Cadastrar() {
       return;
     }
 
-    const { error: erroPerfil } = await supabase.from('profiles').insert({
+    const { error: erroPerfil } = await supabase.from('profiles').upsert({
       id: usuario.id,
       role: papel,
       full_name: nome,
@@ -138,8 +178,8 @@ export default function Cadastrar() {
 
     const { error: erroPapel } =
       papel === 'customer'
-        ? await supabase.from('customers').insert({ id: usuario.id })
-        : await supabase.from('professionals').insert({
+        ? await supabase.from('customers').upsert({ id: usuario.id })
+        : await supabase.from('professionals').upsert({
             id: usuario.id,
             document: cpf.replace(/\D/g, ''),
             skills: servicos,
