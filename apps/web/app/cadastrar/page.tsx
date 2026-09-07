@@ -63,8 +63,18 @@ export default function Cadastrar() {
     (async () => {
       if (!supabase) return;
       const { data: sessao } = await supabase.auth.getSession();
-      const usuario = sessao.session?.user;
-      if (!usuario) return;
+      if (!sessao.session) return;
+
+      // getSession() só lê o token guardado no navegador, sem checar se o
+      // usuário ainda existe no servidor. getUser() valida de verdade — se
+      // a conta foi apagada nesse meio tempo, ele volta vazio e limpamos a
+      // sessão velha em vez de confiar nos metadados dela.
+      const { data: validado } = await supabase.auth.getUser();
+      const usuario = validado.user;
+      if (!usuario) {
+        await supabase.auth.signOut();
+        return;
+      }
 
       const perfil = await buscarPerfil();
       if (perfil) {
