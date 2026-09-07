@@ -78,7 +78,9 @@ export default function Cadastrar() {
 
       const perfil = await buscarPerfil();
       if (perfil) {
-        router.replace(ROTA_POR_PAPEL[perfil.role]);
+        // A conta pode ter os dois papéis (cliente e profissional) — quem
+        // decide pra onde mandar é a tela de login.
+        router.replace('/');
         return;
       }
 
