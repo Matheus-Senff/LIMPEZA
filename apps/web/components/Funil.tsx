@@ -18,6 +18,7 @@ import type { Ruleset } from '@/lib/pricing/types';
 import { faixaDaJanela, janelasDoDia, proximosDias, rotuloData } from '@/lib/agenda';
 import { supabase } from '@/lib/supabase';
 import { IconeServico, type TipoIcone } from './Marca';
+import { Contador } from './Contador';
 
 type Passo = 1 | 2 | 3 | 4 | 5 | 6;
 type TipoLar = 'HOUSE' | 'APARTMENT' | 'STUDIO';
@@ -814,44 +815,6 @@ export function Funil({
           Dúvidas? <Link href="/cliente/conta" className="font-semibold text-azul-600">Fale com o suporte</Link>
         </p>
       </aside>
-    </div>
-  );
-}
-
-function Contador({
-  rotulo,
-  valor,
-  onChange,
-  min,
-  max,
-}: {
-  rotulo: string;
-  valor: number;
-  onChange: (n: number) => void;
-  min: number;
-  max: number;
-}) {
-  return (
-    <div className="flex items-center justify-between rounded-xl border border-tinta-20 px-4 py-3">
-      <span className="text-sm font-semibold numero">
-        {valor} {rotulo}
-      </span>
-      <span className="flex items-center gap-2">
-        <button
-          onClick={() => onChange(Math.max(min, valor - 1))}
-          className="grid h-8 w-8 place-items-center rounded-full border border-tinta-20 font-bold hover:border-azul-600 hover:text-azul-600"
-          aria-label={`Diminuir ${rotulo}`}
-        >
-          −
-        </button>
-        <button
-          onClick={() => onChange(Math.min(max, valor + 1))}
-          className="grid h-8 w-8 place-items-center rounded-full border border-tinta-20 font-bold hover:border-azul-600 hover:text-azul-600"
-          aria-label={`Aumentar ${rotulo}`}
-        >
-          +
-        </button>
-      </span>
     </div>
   );
 }
