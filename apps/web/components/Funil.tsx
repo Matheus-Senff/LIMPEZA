@@ -29,9 +29,18 @@ const TIPOS: { code: TipoLar; nome: string }[] = [
 ];
 
 interface PerfilCliente {
+  id: string;
   nome: string;
   email: string;
   telefone: string;
+}
+
+interface EnderecoSalvo {
+  id: string;
+  label: string | null;
+  street: string;
+  number: string;
+  complement: string | null;
 }
 
 export function Funil({
@@ -75,6 +84,7 @@ export function Funil({
   const [numero, setNumero] = useState('');
   const [complemento, setComplemento] = useState('');
   const [acesso, setAcesso] = useState('');
+  const [enderecosSalvos, setEnderecosSalvos] = useState<EnderecoSalvo[]>([]);
   const [metodo, setMetodo] = useState<'pix' | 'credit_card'>('pix');
   const [pedido, setPedido] = useState<{ codigo: string; simulado?: boolean } | null>(null);
 
@@ -162,6 +172,18 @@ export function Funil({
     // Trocar a duração pode invalidar a janela escolhida.
     if (janela && !janelas.includes(janela)) setJanela(null);
   }, [janelas, janela]);
+
+  useEffect(() => {
+    (async () => {
+      if (!supabase) return;
+      const { data } = await supabase
+        .from('addresses')
+        .select('id, label, street, number, complement')
+        .eq('customer_id', perfil.id)
+        .order('created_at', { ascending: false });
+      setEnderecosSalvos(data ?? []);
+    })();
+  }, [perfil.id]);
 
   const avancarPara = (p: Passo, ref?: React.RefObject<HTMLDivElement | null>) => {
     setPasso(p);
@@ -626,6 +648,24 @@ export function Funil({
           <Cabecalho n={5} titulo="Endereço e acesso" ativo={passo === 5} />
           {passo === 5 && (
             <div className="mt-6 flex animate-entrada flex-col gap-4">
+              {enderecosSalvos.length > 0 && (
+                <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sem-barra">
+                  {enderecosSalvos.map((e) => (
+                    <button
+                      key={e.id}
+                      type="button"
+                      onClick={() => {
+                        setRua(e.street);
+                        setNumero(e.number);
+                        setComplemento(e.complement ?? '');
+                      }}
+                      className="shrink-0 rounded-xl border-2 border-tinta-20 px-4 py-2 text-left text-xs font-semibold hover:border-tinta-50"
+                    >
+                      {e.label ?? `${e.street}, ${e.number}`}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className="grid gap-3 sm:grid-cols-[1fr_120px]">
                 <input className="campo" placeholder="Rua" value={rua} onChange={(e) => setRua(e.target.value)} aria-label="Rua" />
                 <input className="campo" placeholder="Número" value={numero} onChange={(e) => setNumero(e.target.value)} aria-label="Número" />

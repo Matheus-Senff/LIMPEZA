@@ -11,7 +11,7 @@
     "dev": "npm run dev --workspace=plano-limpo-web",
     "build": "npm run build --workspace=plano-limpo-web",
     "start": "npm run start --workspace=plano-limpo-web",
-    "test": "npm test --workspace=@limpeza/pricing",
+    "test": "npm test --workspace=@limpeza/pricing && npm test --workspace=plano-limpo-web",
     "sync:pricing": "node scripts/sync-pricing.mjs"
   },
   "engines": {

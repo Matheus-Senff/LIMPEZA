@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { usePerfil } from '@/lib/usePerfil';
 import { supabase } from '@/lib/supabase';
 import { horas, reais, porCodigo } from '@/lib/catalogo';
@@ -31,6 +32,7 @@ interface Oferta {
     minutes: number;
     payout_cents: number;
   } | null;
+  cidade?: string;
 }
 
 export default function ProfissionalHome() {
@@ -69,8 +71,18 @@ export default function ProfissionalHome() {
     ]);
     setDados((prof.data as DadosProfissional) ?? null);
     setPedidos(ord.data ?? []);
-    setOfertas((ofe.data as unknown as Oferta[]) ?? []);
+    const listaOfertas = (ofe.data as unknown as Oferta[]) ?? [];
+    setOfertas(listaOfertas);
     setCarregando(false);
+
+    const comCidade = await Promise.all(
+      listaOfertas.map(async (o) => {
+        const { data } = await supabase!.rpc('fn_cidade_da_oferta', { p_order_id: o.order_id });
+        const linha = Array.isArray(data) ? data[0] : null;
+        return { ...o, cidade: linha ? `${linha.city}/${linha.state}` : undefined };
+      }),
+    );
+    setOfertas(comCidade);
   }, [perfil.id]);
 
   useEffect(() => {
@@ -144,7 +156,10 @@ export default function ProfissionalHome() {
               return (
                 <li key={o.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
                   <div>
-                    <p className="font-bold">{servico?.nome ?? o.orders?.service}</p>
+                    <p className="font-bold">
+                      {servico?.nome ?? o.orders?.service}
+                      {o.cidade && <span className="ml-2 rounded-full bg-tinta-5 px-2 py-0.5 text-[11px] font-bold text-tinta-70">{o.cidade}</span>}
+                    </p>
                     {o.orders && (
                       <p className="text-xs text-tinta-50 numero">
                         {new Date(o.orders.scheduled_at).toLocaleString('pt-BR', {
@@ -191,9 +206,13 @@ export default function ProfissionalHome() {
             <p className="mt-1 text-sm text-tinta-50">Pedidos que você aceitar aparecem aqui.</p>
           </div>
         ) : (
-          <ul className="cartao flex flex-col divide-y divide-tinta-10 p-2">
+          <div className="cartao flex flex-col divide-y divide-tinta-10 p-2">
             {pedidos.map((p) => (
-              <li key={p.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
+              <Link
+                key={p.id}
+                href={`/profissional/pedidos/${p.id}`}
+                className="flex flex-wrap items-center justify-between gap-3 p-4 transition hover:bg-tinta-5"
+              >
                 <div>
                   <p className="font-bold numero">
                     {new Date(p.scheduled_at).toLocaleString('pt-BR', {
@@ -209,9 +228,9 @@ export default function ProfissionalHome() {
                 </div>
                 <span className="rounded-full bg-tinta-5 px-3 py-1 text-xs font-bold text-tinta-70">{p.status}</span>
                 <span className="font-bold text-verde-700 numero">{reais(p.payout_cents)}</span>
-              </li>
+              </Link>
             ))}
-          </ul>
+          </div>
         )}
       </section>
     </main>
