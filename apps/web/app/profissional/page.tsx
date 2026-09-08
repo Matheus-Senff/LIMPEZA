@@ -3,12 +3,22 @@
 import { useCallback, useEffect, useState } from 'react';
 import { usePerfil } from '@/lib/usePerfil';
 import { supabase } from '@/lib/supabase';
-import { horas, reais, porCodigo } from '@/lib/catalogo';
+import { horas, reais, porCodigo, OPCIONAIS } from '@/lib/catalogo';
+import { Modal } from '@/components/Modal';
 
 interface DadosProfissional {
   rating_avg: number;
   rating_count: number;
   completed_orders: number;
+}
+
+interface Detalhes {
+  city: string;
+  state: string;
+  home_type: 'HOUSE' | 'APARTMENT' | 'STUDIO';
+  bedrooms: number;
+  bathrooms: number;
+  has_pets: boolean;
 }
 
 interface Oferta {
@@ -20,9 +30,12 @@ interface Oferta {
     scheduled_at: string;
     minutes: number;
     payout_cents: number;
+    addons: string[];
   } | null;
-  cidade?: string;
+  detalhes?: Detalhes;
 }
+
+const TIPOS: Record<string, string> = { HOUSE: 'Casa', APARTMENT: 'Apartamento', STUDIO: 'Studio' };
 
 export default function ProfissionalHome() {
   const perfil = usePerfil();
@@ -31,6 +44,7 @@ export default function ProfissionalHome() {
   const [carregando, setCarregando] = useState(true);
   const [respondendo, setRespondendo] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
+  const [detalheAberto, setDetalheAberto] = useState<Oferta | null>(null);
 
   const carregar = useCallback(async () => {
     if (!supabase) {
@@ -45,7 +59,7 @@ export default function ProfissionalHome() {
         .maybeSingle(),
       supabase
         .from('order_offers')
-        .select('id, order_id, expires_at, orders(service, scheduled_at, minutes, payout_cents)')
+        .select('id, order_id, expires_at, orders(service, scheduled_at, minutes, payout_cents, addons)')
         .eq('professional_id', perfil.id)
         .eq('status', 'sent')
         .gt('expires_at', new Date().toISOString())
@@ -56,19 +70,42 @@ export default function ProfissionalHome() {
     setOfertas(listaOfertas);
     setCarregando(false);
 
-    const comCidade = await Promise.all(
+    const comDetalhes = await Promise.all(
       listaOfertas.map(async (o) => {
         const { data } = await supabase!.rpc('fn_cidade_da_oferta', { p_order_id: o.order_id });
-        const linha = Array.isArray(data) ? data[0] : null;
-        return { ...o, cidade: linha ? `${linha.city}/${linha.state}` : undefined };
+        const linha = Array.isArray(data) ? (data[0] as Detalhes) : undefined;
+        return { ...o, detalhes: linha };
       }),
     );
-    setOfertas(comCidade);
+    setOfertas(comDetalhes);
   }, [perfil.id]);
 
   useEffect(() => {
     carregar();
   }, [carregar]);
+
+  // Se o cliente editar o pedido enquanto a oferta ainda está pendente, o
+  // profissional vê a mudança sem precisar recarregar a página. O RLS do
+  // Realtime já garante que só chegam eventos de pedidos que ele pode ver.
+  const idsEmOferta = ofertas.map((o) => o.order_id).join(',');
+  useEffect(() => {
+    if (!supabase || !idsEmOferta) return;
+    const ids = new Set(idsEmOferta.split(','));
+    const canal = supabase
+      .channel(`pedidos-em-oferta-${perfil.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'orders' },
+        (payload) => {
+          if (ids.has((payload.new as { id: string }).id)) carregar();
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase?.removeChannel(canal);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [perfil.id, idsEmOferta]);
 
   async function aceitar(oferta: Oferta) {
     if (!supabase) return;
@@ -76,6 +113,7 @@ export default function ProfissionalHome() {
     setAviso(null);
     const { data } = await supabase.rpc('fn_aceitar_oferta', { p_order_id: oferta.order_id });
     setRespondendo(null);
+    setDetalheAberto(null);
     if (!data) {
       setAviso('Esse pedido já foi aceito por outro profissional.');
     }
@@ -90,6 +128,7 @@ export default function ProfissionalHome() {
       .update({ status: 'declined', responded_at: new Date().toISOString() })
       .eq('id', oferta.id);
     setRespondendo(null);
+    setDetalheAberto(null);
     await carregar();
   }
 
@@ -136,10 +175,14 @@ export default function ProfissionalHome() {
               const servico = o.orders ? porCodigo(o.orders.service as never) : null;
               return (
                 <li key={o.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
-                  <div>
-                    <p className="font-bold">
+                  <button className="text-left" onClick={() => setDetalheAberto(o)}>
+                    <p className="font-bold underline decoration-tinta-20 underline-offset-2">
                       {servico?.nome ?? o.orders?.service}
-                      {o.cidade && <span className="ml-2 rounded-full bg-tinta-5 px-2 py-0.5 text-[11px] font-bold text-tinta-70">{o.cidade}</span>}
+                      {o.detalhes && (
+                        <span className="ml-2 rounded-full bg-tinta-5 px-2 py-0.5 text-[11px] font-bold text-tinta-70">
+                          {o.detalhes.city}/{o.detalhes.state}
+                        </span>
+                      )}
                     </p>
                     {o.orders && (
                       <p className="text-xs text-tinta-50 numero">
@@ -152,9 +195,15 @@ export default function ProfissionalHome() {
                         · {horas(o.orders.minutes)}
                       </p>
                     )}
-                  </div>
+                  </button>
                   {o.orders && <span className="font-bold text-verde-700 numero">{reais(o.orders.payout_cents)}</span>}
                   <div className="flex gap-2">
+                    <button
+                      onClick={() => setDetalheAberto(o)}
+                      className="btn-contorno !px-4 !py-2 !text-xs"
+                    >
+                      Ver detalhes
+                    </button>
                     <button
                       onClick={() => aceitar(o)}
                       disabled={respondendo === o.id}
@@ -176,6 +225,93 @@ export default function ProfissionalHome() {
           </ul>
         )}
       </section>
+
+      {detalheAberto && (
+        <Modal titulo="Detalhes da oferta" onFechar={() => setDetalheAberto(null)}>
+          <DetalheOferta oferta={detalheAberto} />
+          <div className="mt-5 flex gap-2">
+            <button
+              onClick={() => aceitar(detalheAberto)}
+              disabled={respondendo === detalheAberto.id}
+              className="btn-verde"
+            >
+              Aceitar
+            </button>
+            <button
+              onClick={() => recusar(detalheAberto)}
+              disabled={respondendo === detalheAberto.id}
+              className="btn-contorno"
+            >
+              Recusar
+            </button>
+          </div>
+        </Modal>
+      )}
     </main>
+  );
+}
+
+function DetalheOferta({ oferta }: { oferta: Oferta }) {
+  const servico = oferta.orders ? porCodigo(oferta.orders.service as never) : null;
+  const nomesOpcionais = OPCIONAIS.filter((o) => oferta.orders?.addons?.includes(o.code)).map((o) => o.nome);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid gap-3 text-sm sm:grid-cols-2">
+        <div>
+          <p className="rotulo">Serviço</p>
+          <p className="font-semibold">{servico?.nome ?? oferta.orders?.service}</p>
+        </div>
+        <div>
+          <p className="rotulo">Duração</p>
+          <p className="font-semibold numero">{oferta.orders ? horas(oferta.orders.minutes) : '—'}</p>
+        </div>
+        <div>
+          <p className="rotulo">Região</p>
+          <p className="font-semibold">
+            {oferta.detalhes ? `${oferta.detalhes.city}/${oferta.detalhes.state}` : '—'}
+          </p>
+        </div>
+        <div>
+          <p className="rotulo">Repasse</p>
+          <p className="font-semibold text-verde-700 numero">
+            {oferta.orders ? reais(oferta.orders.payout_cents) : '—'}
+          </p>
+        </div>
+        {oferta.detalhes && (
+          <>
+            <div>
+              <p className="rotulo">Tipo de imóvel</p>
+              <p className="font-semibold">{TIPOS[oferta.detalhes.home_type] ?? oferta.detalhes.home_type}</p>
+            </div>
+            <div>
+              <p className="rotulo">Cômodos</p>
+              <p className="font-semibold numero">
+                {oferta.detalhes.bedrooms} quarto{oferta.detalhes.bedrooms === 1 ? '' : 's'} ·{' '}
+                {oferta.detalhes.bathrooms} banheiro{oferta.detalhes.bathrooms === 1 ? '' : 's'}
+                {oferta.detalhes.has_pets ? ' · tem animal de estimação' : ''}
+              </p>
+            </div>
+          </>
+        )}
+      </div>
+      <div>
+        <p className="rotulo">Itens opcionais</p>
+        {nomesOpcionais.length > 0 ? (
+          <ul className="mt-1 flex flex-col gap-1 text-sm">
+            {nomesOpcionais.map((n) => (
+              <li key={n} className="flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-verde-500" /> {n}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-tinta-50">Nenhum opcional selecionado.</p>
+        )}
+      </div>
+      <p className="text-xs text-tinta-50">
+        O endereço completo e as instruções de acesso só ficam disponíveis depois que você aceitar.
+      </p>
+    </div>
   );
 }
