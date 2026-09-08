@@ -281,7 +281,7 @@ export function Funil({
       className="flex w-full items-center gap-3 text-left disabled:cursor-not-allowed"
     >
       <span
-        className={`grid h-8 w-14 shrink-0 place-items-center rounded-full text-xs font-extrabold ${
+        className={`numero flex h-7 shrink-0 items-center justify-center rounded-full px-2.5 text-xs font-extrabold leading-none ${
           ativo ? 'bg-azul-600 text-white' : n <= maxPasso ? 'bg-azul-50 text-azul-700' : 'bg-tinta-10 text-tinta-50'
         }`}
       >
@@ -811,7 +811,7 @@ export function Funil({
         </div>
 
         <p className="mt-4 px-2 text-xs text-tinta-50">
-          Dúvidas? <Link href="/conta" className="font-semibold text-azul-600">Fale com o suporte</Link>
+          Dúvidas? <Link href="/cliente/conta" className="font-semibold text-azul-600">Fale com o suporte</Link>
         </p>
       </aside>
     </div>
@@ -908,7 +908,7 @@ function PedidoConfirmado({
         </p>
       )}
       <div className="flex flex-wrap justify-center gap-3">
-        <Link href="/conta" className="btn-primario">Acompanhar pedido</Link>
+        <Link href="/cliente/pedidos" className="btn-primario">Acompanhar pedido</Link>
         <Link href="/" className="btn-contorno">Voltar ao início</Link>
       </div>
     </div>

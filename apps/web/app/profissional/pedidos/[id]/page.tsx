@@ -113,8 +113,8 @@ export default function PedidoProfissional({ params }: { params: Promise<{ id: s
   return (
     <main className="container-app flex max-w-2xl flex-col gap-6 py-10">
       <div>
-        <Link href="/profissional" className="text-sm font-semibold text-tinta-50">
-          ← Seus pedidos
+        <Link href="/profissional/pedidos" className="text-sm font-semibold text-tinta-50">
+          ← Meus pedidos
         </Link>
         <h1 className="mt-2 text-2xl font-bold tracking-tight">{servico?.nome ?? pedido.service}</h1>
         <p className="text-sm text-tinta-50 numero">#{pedido.code}</p>
