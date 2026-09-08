@@ -182,6 +182,7 @@ export function Funil({
         .from('addresses')
         .select('id, label, street, number, complement')
         .eq('customer_id', perfil.id)
+        .eq('active', true)
         .order('created_at', { ascending: false });
       setEnderecosSalvos(data ?? []);
     })();
@@ -777,7 +778,7 @@ export function Funil({
               </li>
             )}
             <li className="flex justify-between gap-3">
-              <span className="text-tinta-50">Quando</span>
+              <span className="text-tinta-50">Dia, Horário</span>
               <span className="font-semibold numero">
                 {janela ? `${rotuloData(janela.slice(0, 10)).extenso}, ${faixaDaJanela(janela, minutosTotais)}` : 'a escolher'}
               </span>
@@ -853,7 +854,7 @@ function PedidoConfirmado({
       </p>
       <div className="cartao grid w-full gap-4 p-6 text-left sm:grid-cols-3">
         <div>
-          <p className="rotulo">Quando</p>
+          <p className="rotulo">Dia, Horário</p>
           <p className="font-bold numero">
             {janela ? `${rotuloData(janela.slice(0, 10)).extenso}` : '—'}
           </p>

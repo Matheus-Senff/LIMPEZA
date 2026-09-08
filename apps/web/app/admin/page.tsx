@@ -320,7 +320,7 @@ function PainelAdmin() {
                   <tr className="border-b border-tinta-20 text-left">
                     <th className="py-2 pr-4 rotulo">Código</th>
                     <th className="py-2 pr-4 rotulo">Serviço</th>
-                    <th className="py-2 pr-4 rotulo">Quando</th>
+                    <th className="py-2 pr-4 rotulo">Dia, Horário</th>
                     <th className="py-2 pr-4 rotulo">Status</th>
                     <th className="py-2 rotulo">Valor</th>
                   </tr>

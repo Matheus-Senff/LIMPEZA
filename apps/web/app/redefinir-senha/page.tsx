@@ -5,10 +5,12 @@ import { useRouter } from 'next/navigation';
 import { Logo } from '@/components/Marca';
 import { supabase } from '@/lib/supabase';
 import { buscarPerfil, ROTA_POR_PAPEL } from '@/lib/perfil';
+import { lerSenhaPendente, limparSenhaPendente } from '@/lib/senhaPendente';
 
 export default function RedefinirSenha() {
   const router = useRouter();
   const [pronto, setPronto] = useState(false);
+  const [senhaPendente, setSenhaPendente] = useState<string | null>(null);
   const [senha, setSenha] = useState('');
   const [confirmar, setConfirmar] = useState('');
   const [carregando, setCarregando] = useState(false);
@@ -19,8 +21,28 @@ export default function RedefinirSenha() {
       if (!supabase) return;
       const { data } = await supabase.auth.getSession();
       setPronto(Boolean(data.session));
+      if (data.session) setSenhaPendente(lerSenhaPendente());
     })();
   }, []);
+
+  async function aplicarSenha(novaSenha: string) {
+    if (!supabase) return;
+    setCarregando(true);
+    setErro(null);
+    const { error } = await supabase.auth.updateUser({ password: novaSenha });
+    setCarregando(false);
+    if (error) {
+      setErro(error.message);
+      return;
+    }
+    limparSenhaPendente();
+    const perfil = await buscarPerfil();
+    router.replace(perfil ? ROTA_POR_PAPEL[perfil.role] : '/cadastrar');
+  }
+
+  async function confirmarSenhaPendente() {
+    if (senhaPendente) await aplicarSenha(senhaPendente);
+  }
 
   async function salvar(e: React.FormEvent) {
     e.preventDefault();
@@ -33,18 +55,7 @@ export default function RedefinirSenha() {
       setErro('As senhas não coincidem.');
       return;
     }
-    if (!supabase) return;
-
-    setCarregando(true);
-    const { error } = await supabase.auth.updateUser({ password: senha });
-    setCarregando(false);
-    if (error) {
-      setErro(error.message);
-      return;
-    }
-
-    const perfil = await buscarPerfil();
-    router.replace(perfil ? ROTA_POR_PAPEL[perfil.role] : '/cadastrar');
+    await aplicarSenha(senha);
   }
 
   return (
@@ -64,6 +75,27 @@ export default function RedefinirSenha() {
               </a>
               .
             </p>
+          ) : senhaPendente ? (
+            <div className="mt-3 flex flex-col gap-3">
+              <p className="text-sm text-tinta-50">
+                Confirme a troca de senha que você pediu em Minha conta.
+              </p>
+              {erro && (
+                <p className="rounded-lg border border-tinta-20 bg-tinta-5 px-4 py-3 text-sm font-semibold text-tinta">
+                  {erro}
+                </p>
+              )}
+              <button onClick={confirmarSenhaPendente} className="btn-primario w-full" disabled={carregando}>
+                {carregando ? 'Confirmando…' : 'Confirmar nova senha'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSenhaPendente(null)}
+                className="text-center text-sm text-tinta-50"
+              >
+                Prefiro digitar de novo
+              </button>
+            </div>
           ) : (
             <form onSubmit={salvar} className="mt-6 flex flex-col gap-3">
               <input
