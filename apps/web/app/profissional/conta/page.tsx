@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { usePerfil } from '@/lib/usePerfil';
 import { supabase } from '@/lib/supabase';
 import { SERVICOS } from '@/lib/catalogo';
+import { ContaAcesso } from '@/components/ContaAcesso';
 
 const SERVICOS_PROFISSIONAL = SERVICOS.filter((s) => s.code !== 'HOME_ASSISTANCE');
 
@@ -83,6 +84,8 @@ export default function ContaProfissional() {
           </button>
         </form>
       </section>
+
+      <ContaAcesso email={perfil.email} />
     </main>
   );
 }

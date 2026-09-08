@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { usePerfil } from '@/lib/usePerfil';
 import { supabase } from '@/lib/supabase';
+import { ContaAcesso } from '@/components/ContaAcesso';
 
 interface Endereco {
   id: string;
@@ -30,6 +31,9 @@ export default function ContaCliente() {
   const [novaCidade, setNovaCidade] = useState('');
   const [novoEstado, setNovoEstado] = useState('');
   const [salvandoEndereco, setSalvandoEndereco] = useState(false);
+  const [mostrarFormEndereco, setMostrarFormEndereco] = useState(false);
+  const [avisoEndereco, setAvisoEndereco] = useState<string | null>(null);
+  const [removendo, setRemovendo] = useState<string | null>(null);
 
   const carregarEnderecos = useCallback(async () => {
     if (!supabase) return;
@@ -59,7 +63,8 @@ export default function ContaCliente() {
     e.preventDefault();
     if (!supabase) return;
     setSalvandoEndereco(true);
-    await supabase.from('addresses').insert({
+    setAvisoEndereco(null);
+    const { error } = await supabase.from('addresses').insert({
       customer_id: perfil.id,
       label: novoLabel || null,
       zipcode: novoCep.replace(/\D/g, ''),
@@ -70,6 +75,10 @@ export default function ContaCliente() {
       state: novoEstado.slice(0, 2),
     });
     setSalvandoEndereco(false);
+    if (error) {
+      setAvisoEndereco('Não foi possível salvar esse endereço agora.');
+      return;
+    }
     setNovoLabel('');
     setNovoCep('');
     setNovaRua('');
@@ -77,12 +86,26 @@ export default function ContaCliente() {
     setNovoComplemento('');
     setNovaCidade('');
     setNovoEstado('');
+    setMostrarFormEndereco(false);
     await carregarEnderecos();
   }
 
   async function removerEndereco(id: string) {
     if (!supabase) return;
-    await supabase.from('addresses').delete().eq('id', id);
+    setRemovendo(id);
+    setAvisoEndereco(null);
+    const { error } = await supabase.from('addresses').delete().eq('id', id);
+    setRemovendo(null);
+    if (error) {
+      // 23503 = violação de chave estrangeira: o endereço já foi usado em
+      // algum pedido, e o histórico não pode perder a referência dele.
+      setAvisoEndereco(
+        error.code === '23503'
+          ? 'Esse endereço já foi usado em um pedido e não pode ser removido — mas você pode parar de usá-lo escolhendo outro na próxima contratação.'
+          : 'Não foi possível remover esse endereço agora.',
+      );
+      return;
+    }
     await carregarEnderecos();
   }
 
@@ -102,12 +125,14 @@ export default function ContaCliente() {
         </form>
       </section>
 
+      <ContaAcesso email={perfil.email} />
+
       <section className="cartao p-6">
         <h2 className="mb-4 text-lg font-bold">Endereços salvos</h2>
         {enderecos.length === 0 ? (
-          <p className="text-sm text-tinta-50">Nenhum endereço salvo ainda.</p>
+          <p className="mb-4 text-sm text-tinta-50">Nenhum endereço salvo ainda.</p>
         ) : (
-          <ul className="mb-6 flex flex-col divide-y divide-tinta-10">
+          <ul className="mb-4 flex flex-col divide-y divide-tinta-10">
             {enderecos.map((e) => (
               <li key={e.id} className="flex items-center justify-between gap-3 py-3">
                 <div className="text-sm">
@@ -117,38 +142,58 @@ export default function ContaCliente() {
                     {e.complement ? ` · ${e.complement}` : ''} — {e.city}/{e.state}
                   </p>
                 </div>
-                <button onClick={() => removerEndereco(e.id)} className="text-xs font-semibold text-tinta-50 hover:text-tinta">
-                  Remover
+                <button
+                  onClick={() => removerEndereco(e.id)}
+                  disabled={removendo === e.id}
+                  className="text-xs font-semibold text-tinta-50 hover:text-tinta"
+                >
+                  {removendo === e.id ? 'Removendo…' : 'Remover'}
                 </button>
               </li>
             ))}
           </ul>
         )}
 
-        <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-tinta-50">Adicionar endereço</h3>
-        <form onSubmit={adicionarEndereco} className="flex flex-col gap-3">
-          <input className="campo" placeholder="Apelido (ex: Casa, Trabalho)" value={novoLabel} onChange={(e) => setNovoLabel(e.target.value)} />
-          <div className="grid gap-3 sm:grid-cols-[1fr_120px]">
-            <input className="campo" placeholder="Rua" required value={novaRua} onChange={(e) => setNovaRua(e.target.value)} />
-            <input className="campo" placeholder="Número" required value={novoNumero} onChange={(e) => setNovoNumero(e.target.value)} />
-          </div>
-          <input className="campo" placeholder="Complemento" value={novoComplemento} onChange={(e) => setNovoComplemento(e.target.value)} />
-          <div className="grid gap-3 sm:grid-cols-[1fr_80px_120px]">
-            <input className="campo" placeholder="Cidade" required value={novaCidade} onChange={(e) => setNovaCidade(e.target.value)} />
-            <input className="campo" placeholder="UF" required maxLength={2} value={novoEstado} onChange={(e) => setNovoEstado(e.target.value.toUpperCase())} />
-            <input
-              className="campo"
-              placeholder="CEP"
-              required
-              inputMode="numeric"
-              value={novoCep}
-              onChange={(e) => setNovoCep(e.target.value.replace(/\D/g, '').slice(0, 8))}
-            />
-          </div>
-          <button className="btn-contorno w-fit" disabled={salvandoEndereco}>
-            {salvandoEndereco ? 'Salvando…' : 'Adicionar endereço'}
+        {avisoEndereco && (
+          <p className="mb-4 rounded-lg border border-tinta-20 bg-tinta-5 px-4 py-3 text-sm font-semibold text-tinta">
+            {avisoEndereco}
+          </p>
+        )}
+
+        {!mostrarFormEndereco ? (
+          <button onClick={() => setMostrarFormEndereco(true)} className="btn-contorno w-fit">
+            + Adicionar endereço
           </button>
-        </form>
+        ) : (
+          <form onSubmit={adicionarEndereco} className="flex flex-col gap-3">
+            <input className="campo" placeholder="Apelido (ex: Casa, Trabalho)" value={novoLabel} onChange={(e) => setNovoLabel(e.target.value)} />
+            <div className="grid gap-3 sm:grid-cols-[1fr_120px]">
+              <input className="campo" placeholder="Rua" required value={novaRua} onChange={(e) => setNovaRua(e.target.value)} />
+              <input className="campo" placeholder="Número" required value={novoNumero} onChange={(e) => setNovoNumero(e.target.value)} />
+            </div>
+            <input className="campo" placeholder="Complemento" value={novoComplemento} onChange={(e) => setNovoComplemento(e.target.value)} />
+            <div className="grid gap-3 sm:grid-cols-[1fr_80px_120px]">
+              <input className="campo" placeholder="Cidade" required value={novaCidade} onChange={(e) => setNovaCidade(e.target.value)} />
+              <input className="campo" placeholder="UF" required maxLength={2} value={novoEstado} onChange={(e) => setNovoEstado(e.target.value.toUpperCase())} />
+              <input
+                className="campo"
+                placeholder="CEP"
+                required
+                inputMode="numeric"
+                value={novoCep}
+                onChange={(e) => setNovoCep(e.target.value.replace(/\D/g, '').slice(0, 8))}
+              />
+            </div>
+            <div className="flex gap-2">
+              <button className="btn-contorno w-fit" disabled={salvandoEndereco}>
+                {salvandoEndereco ? 'Salvando…' : 'Salvar endereço'}
+              </button>
+              <button type="button" onClick={() => setMostrarFormEndereco(false)} className="text-sm font-semibold text-tinta-50">
+                Cancelar
+              </button>
+            </div>
+          </form>
+        )}
       </section>
     </main>
   );

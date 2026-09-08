@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePerfil } from '@/lib/usePerfil';
 import { supabase } from '@/lib/supabase';
 import { horas, reais, porCodigo } from '@/lib/catalogo';
-import { Chat } from '@/components/Chat';
+import { ChatPedido } from '@/components/ChatPedido';
 
 interface Pedido {
   id: string;
@@ -176,10 +176,7 @@ export default function PedidoProfissional({ params }: { params: Promise<{ id: s
         </div>
       </div>
 
-      <div className="cartao p-6">
-        <h2 className="mb-3 text-lg font-bold">Chat</h2>
-        <Chat orderId={pedido.id} meuId={perfil.id} />
-      </div>
+      <ChatPedido orderId={pedido.id} meuId={perfil.id} />
     </main>
   );
 }

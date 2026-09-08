@@ -4,9 +4,7 @@ export function Logo({ compacto = false, invertido = false }: { compacto?: boole
   return (
     <Link href="/" className="inline-flex items-center gap-2.5" aria-label="Plano Limpo, página inicial">
       <span className="grid h-9 w-9 place-items-center rounded-xl bg-degrade">
-        <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
-          <path d="M5 12.5l4.2 4.2L19 7" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
+        <MarcaVan className="h-5 w-5" />
       </span>
       {!compacto && (
         <span className={`text-[19px] font-extrabold tracking-tight ${invertido ? 'text-white' : 'text-tinta'}`}>
@@ -14,6 +12,26 @@ export function Logo({ compacto = false, invertido = false }: { compacto?: boole
         </span>
       )}
     </Link>
+  );
+}
+
+/** Van de limpeza com vassoura — ícone da marca, minimalista e reconhecível mesmo pequeno. */
+function MarcaVan({ className = 'h-5 w-5' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
+      <path
+        d="M2.5 15.5V9.8a1 1 0 011-1h9l4 4v2.7"
+        stroke="#fff"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M2.5 15.5h14" stroke="#fff" strokeWidth="1.7" strokeLinecap="round" />
+      <circle cx="6.5" cy="16.2" r="1.4" fill="#fff" />
+      <circle cx="14.5" cy="16.2" r="1.4" fill="#fff" />
+      <path d="M17 9.8l2.6-4.3" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M19.2 6.3l1.7-1 .7 1.5-1.8.6z" fill="#fff" />
+    </svg>
   );
 }
 

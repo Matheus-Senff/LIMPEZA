@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePerfil } from '@/lib/usePerfil';
 import { supabase } from '@/lib/supabase';
 import { horas, reais, porCodigo, OPCIONAIS } from '@/lib/catalogo';
-import { Chat } from '@/components/Chat';
+import { ChatPedido } from '@/components/ChatPedido';
 import { Modal } from '@/components/Modal';
 import { Contador } from '@/components/Contador';
 
@@ -33,6 +33,16 @@ interface Endereco {
   bedrooms: number;
   bathrooms: number;
   access_notes: string | null;
+}
+
+const STATUS_CANCELADO = ['cancelled_by_customer', 'cancelled_by_professional', 'no_show', 'refunded'];
+
+function mensagemNaoEditavel(status: string): string {
+  if (STATUS_CANCELADO.includes(status)) {
+    return 'Esse pedido foi cancelado e não pode mais ser editado.';
+  }
+  if (status === 'searching_professional') return '';
+  return 'Esse pedido já foi aceito por um profissional e não pode mais ser editado.';
 }
 
 const STATUS: Record<string, string> = {
@@ -283,12 +293,7 @@ export default function PedidoCliente({ params }: { params: Promise<{ id: string
         </button>
       )}
 
-      {pedido.professional_id && (
-        <div className="cartao p-6">
-          <h2 className="mb-3 text-lg font-bold">Chat</h2>
-          <Chat orderId={pedido.id} meuId={perfil.id} />
-        </div>
-      )}
+      {pedido.professional_id && <ChatPedido orderId={pedido.id} meuId={perfil.id} />}
 
       {podeAvaliar && (
         <div className="cartao p-6">
@@ -378,9 +383,7 @@ export default function PedidoCliente({ params }: { params: Promise<{ id: string
                   Editar
                 </button>
               ) : (
-                <p className="text-xs text-tinta-50">
-                  Esse pedido já foi aceito por um profissional e não pode mais ser editado.
-                </p>
+                <p className="text-xs text-tinta-50">{mensagemNaoEditavel(pedido.status)}</p>
               )}
             </div>
           ) : (

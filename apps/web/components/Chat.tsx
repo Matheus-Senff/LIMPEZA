@@ -82,14 +82,7 @@ export function Chat({ orderId, meuId }: { orderId: string; meuId: string }) {
   }
 
   if (carregando) return <p className="text-sm text-tinta-50">Carregando conversa…</p>;
-
-  if (!threadId) {
-    return (
-      <p className="rounded-lg bg-tinta-5 px-4 py-3 text-sm text-tinta-50">
-        O chat abre assim que um profissional aceitar o pedido.
-      </p>
-    );
-  }
+  if (!threadId) return null;
 
   return (
     <div className="flex flex-col gap-3">
