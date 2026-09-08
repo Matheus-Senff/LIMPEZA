@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
 import { usePerfil } from '@/lib/usePerfil';
 import { supabase } from '@/lib/supabase';
 import { horas, reais, porCodigo } from '@/lib/catalogo';
@@ -10,16 +9,6 @@ interface DadosProfissional {
   rating_avg: number;
   rating_count: number;
   completed_orders: number;
-}
-
-interface Pedido {
-  id: string;
-  code: string;
-  service: string;
-  scheduled_at: string;
-  minutes: number;
-  status: string;
-  payout_cents: number;
 }
 
 interface Oferta {
@@ -38,7 +27,6 @@ interface Oferta {
 export default function ProfissionalHome() {
   const perfil = usePerfil();
   const [dados, setDados] = useState<DadosProfissional | null>(null);
-  const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [ofertas, setOfertas] = useState<Oferta[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [respondendo, setRespondendo] = useState<string | null>(null);
@@ -49,18 +37,12 @@ export default function ProfissionalHome() {
       setCarregando(false);
       return;
     }
-    const [prof, ord, ofe] = await Promise.all([
+    const [prof, ofe] = await Promise.all([
       supabase
         .from('professionals')
         .select('rating_avg, rating_count, completed_orders')
         .eq('id', perfil.id)
         .maybeSingle(),
-      supabase
-        .from('orders')
-        .select('id, code, service, scheduled_at, minutes, status, payout_cents')
-        .eq('professional_id', perfil.id)
-        .order('scheduled_at', { ascending: true })
-        .limit(20),
       supabase
         .from('order_offers')
         .select('id, order_id, expires_at, orders(service, scheduled_at, minutes, payout_cents)')
@@ -70,7 +52,6 @@ export default function ProfissionalHome() {
         .order('expires_at', { ascending: true }),
     ]);
     setDados((prof.data as DadosProfissional) ?? null);
-    setPedidos(ord.data ?? []);
     const listaOfertas = (ofe.data as unknown as Oferta[]) ?? [];
     setOfertas(listaOfertas);
     setCarregando(false);
@@ -193,44 +174,6 @@ export default function ProfissionalHome() {
               );
             })}
           </ul>
-        )}
-      </section>
-
-      <section>
-        <h2 className="mb-4 text-xl font-bold tracking-tight">Seus pedidos</h2>
-        {carregando ? (
-          <p className="text-sm text-tinta-50">Carregando…</p>
-        ) : pedidos.length === 0 ? (
-          <div className="cartao p-8 text-center">
-            <p className="font-semibold">Nenhum pedido no momento</p>
-            <p className="mt-1 text-sm text-tinta-50">Pedidos que você aceitar aparecem aqui.</p>
-          </div>
-        ) : (
-          <div className="cartao flex flex-col divide-y divide-tinta-10 p-2">
-            {pedidos.map((p) => (
-              <Link
-                key={p.id}
-                href={`/profissional/pedidos/${p.id}`}
-                className="flex flex-wrap items-center justify-between gap-3 p-4 transition hover:bg-tinta-5"
-              >
-                <div>
-                  <p className="font-bold numero">
-                    {new Date(p.scheduled_at).toLocaleString('pt-BR', {
-                      day: '2-digit',
-                      month: 'short',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </p>
-                  <p className="text-xs text-tinta-50 numero">
-                    #{p.code} · {horas(p.minutes)}
-                  </p>
-                </div>
-                <span className="rounded-full bg-tinta-5 px-3 py-1 text-xs font-bold text-tinta-70">{p.status}</span>
-                <span className="font-bold text-verde-700 numero">{reais(p.payout_cents)}</span>
-              </Link>
-            ))}
-          </div>
         )}
       </section>
     </main>

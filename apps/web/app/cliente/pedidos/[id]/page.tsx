@@ -136,7 +136,7 @@ export default function PedidoCliente({ params }: { params: Promise<{ id: string
   return (
     <main className="container-app flex max-w-2xl flex-col gap-6 py-10">
       <div>
-        <Link href="/cliente" className="text-sm font-semibold text-tinta-50">
+        <Link href="/cliente/pedidos" className="text-sm font-semibold text-tinta-50">
           ← Meus pedidos
         </Link>
         <h1 className="mt-2 text-2xl font-bold tracking-tight">{servico?.nome ?? pedido.service}</h1>
