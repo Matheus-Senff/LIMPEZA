@@ -29,7 +29,7 @@ export default function ContratarPage({ params }: { params: Promise<{ servico: s
       <Funil
         servico={servico}
         frequenciaInicial={searchParams.get('frequency') ?? undefined}
-        perfil={{ nome: perfil.full_name, email: perfil.email, telefone: perfil.phone ?? '' }}
+        perfil={{ id: perfil.id, nome: perfil.full_name, email: perfil.email, telefone: perfil.phone ?? '' }}
       />
     </main>
   );

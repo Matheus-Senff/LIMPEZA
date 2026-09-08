@@ -28,6 +28,44 @@ interface RegraAtiva {
   rules: Ruleset;
 }
 
+interface PedidoAdmin {
+  id: string;
+  code: string;
+  service: string;
+  status: string;
+  scheduled_at: string;
+  price_cents: number;
+}
+
+type Credenciamento = 'pending' | 'in_review' | 'approved' | 'suspended' | 'blocked';
+
+interface ProfissionalAdmin {
+  id: string;
+  document: string;
+  accreditation_status: Credenciamento;
+  full_name: string;
+}
+
+const STATUS_PEDIDO: Record<string, string> = {
+  searching_professional: 'Procurando profissional',
+  assigned: 'Confirmado',
+  in_progress: 'Em andamento',
+  completed: 'Concluído',
+  rated: 'Avaliado',
+  cancelled_by_customer: 'Cancelado (cliente)',
+  cancelled_by_professional: 'Cancelado (profissional)',
+  no_show: 'Não compareceu',
+  refunded: 'Reembolsado',
+};
+
+const STATUS_CREDENCIAMENTO: Record<Credenciamento, string> = {
+  pending: 'Em análise',
+  in_review: 'Documentos em verificação',
+  approved: 'Aprovado',
+  suspended: 'Suspenso',
+  blocked: 'Bloqueado',
+};
+
 export default function Admin() {
   return (
     <GuardaPerfil papel="admin">
@@ -41,6 +79,9 @@ function PainelAdmin() {
   const [coberturas, setCoberturas] = useState<Cobertura[]>([]);
   const [regras, setRegras] = useState<RegraAtiva[]>([]);
   const [leads, setLeads] = useState<{ total: number; sem_cobertura: number } | null>(null);
+  const [pedidos, setPedidos] = useState<PedidoAdmin[]>([]);
+  const [filtroStatus, setFiltroStatus] = useState('todos');
+  const [profissionais, setProfissionais] = useState<ProfissionalAdmin[]>([]);
   const [carregando, setCarregando] = useState(true);
 
   // simulador
@@ -56,10 +97,16 @@ function PainelAdmin() {
         setCarregando(false);
         return;
       }
-      const [c, r, l] = await Promise.all([
+      const [c, r, l, p, prof] = await Promise.all([
         supabase.from('coverage_areas').select('*').order('region_code'),
         supabase.from('pricing_rulesets').select('id, region_code, service, version, rules').eq('active', true),
         supabase.from('leads').select('covered'),
+        supabase
+          .from('orders')
+          .select('id, code, service, status, scheduled_at, price_cents')
+          .order('scheduled_at', { ascending: false })
+          .limit(50),
+        supabase.from('professionals').select('id, document, accreditation_status, profiles(full_name)'),
       ]);
       setCoberturas(c.data ?? []);
       setRegras((r.data as RegraAtiva[]) ?? []);
@@ -69,9 +116,31 @@ function PainelAdmin() {
           sem_cobertura: l.data.filter((x: { covered: boolean }) => !x.covered).length,
         });
       }
+      setPedidos(p.data ?? []);
+      setProfissionais(
+        ((prof.data ?? []) as unknown as { id: string; document: string; accreditation_status: Credenciamento; profiles: { full_name: string } | null }[]).map(
+          (row) => ({
+            id: row.id,
+            document: row.document,
+            accreditation_status: row.accreditation_status,
+            full_name: row.profiles?.full_name ?? '—',
+          }),
+        ),
+      );
       setCarregando(false);
     })();
   }, []);
+
+  async function atualizarCredenciamento(id: string, status: Credenciamento) {
+    if (!supabase) return;
+    await supabase.from('professionals').update({ accreditation_status: status }).eq('id', id);
+    setProfissionais((atual) => atual.map((p) => (p.id === id ? { ...p, accreditation_status: status } : p)));
+  }
+
+  const pedidosFiltrados = useMemo(
+    () => (filtroStatus === 'todos' ? pedidos : pedidos.filter((p) => p.status === filtroStatus)),
+    [pedidos, filtroStatus],
+  );
 
   const rulesetSimulado: Ruleset = useMemo(() => {
     const achado = regras.find((r) => r.region_code === regiao && r.service === servico);
@@ -225,6 +294,104 @@ function PainelAdmin() {
               </tbody>
             </table>
           </div>
+        </section>
+
+        {/* ---------------------------------------------------- pedidos */}
+        <section className="cartao mb-6 p-6">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-bold">Pedidos</h2>
+            <select className="campo w-auto" value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)}>
+              <option value="todos">Todos os status</option>
+              {Object.entries(STATUS_PEDIDO).map(([valor, rotulo]) => (
+                <option key={valor} value={valor}>
+                  {rotulo}
+                </option>
+              ))}
+            </select>
+          </div>
+          {carregando ? (
+            <p className="text-sm text-tinta-50">Carregando…</p>
+          ) : pedidosFiltrados.length === 0 ? (
+            <p className="text-sm text-tinta-50">Nenhum pedido com esse filtro.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-tinta-20 text-left">
+                    <th className="py-2 pr-4 rotulo">Código</th>
+                    <th className="py-2 pr-4 rotulo">Serviço</th>
+                    <th className="py-2 pr-4 rotulo">Quando</th>
+                    <th className="py-2 pr-4 rotulo">Status</th>
+                    <th className="py-2 rotulo">Valor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pedidosFiltrados.map((p) => (
+                    <tr key={p.id} className="border-b border-tinta-10 last:border-0">
+                      <td className="py-3 pr-4 font-bold numero">{p.code}</td>
+                      <td className="py-3 pr-4">{p.service}</td>
+                      <td className="py-3 pr-4 numero">
+                        {new Date(p.scheduled_at).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      </td>
+                      <td className="py-3 pr-4">
+                        <span className="rounded-full bg-tinta-5 px-2.5 py-1 text-xs font-bold text-tinta-70">
+                          {STATUS_PEDIDO[p.status] ?? p.status}
+                        </span>
+                      </td>
+                      <td className="py-3 font-bold text-verde-700 numero">{reais(p.price_cents)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        {/* --------------------------------------------- profissionais */}
+        <section className="cartao mb-6 p-6">
+          <h2 className="mb-4 text-lg font-bold">Profissionais</h2>
+          {carregando ? (
+            <p className="text-sm text-tinta-50">Carregando…</p>
+          ) : profissionais.length === 0 ? (
+            <p className="text-sm text-tinta-50">Nenhum profissional cadastrado.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-tinta-20 text-left">
+                    <th className="py-2 pr-4 rotulo">Nome</th>
+                    <th className="py-2 pr-4 rotulo">CPF</th>
+                    <th className="py-2 pr-4 rotulo">Status</th>
+                    <th className="py-2 rotulo">Ação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {profissionais.map((p) => (
+                    <tr key={p.id} className="border-b border-tinta-10 last:border-0">
+                      <td className="py-3 pr-4 font-semibold">{p.full_name}</td>
+                      <td className="py-3 pr-4 numero">{p.document}</td>
+                      <td className="py-3 pr-4">
+                        <span className="rounded-full bg-tinta-5 px-2.5 py-1 text-xs font-bold text-tinta-70">
+                          {STATUS_CREDENCIAMENTO[p.accreditation_status]}
+                        </span>
+                      </td>
+                      <td className="flex flex-wrap gap-2 py-3">
+                        <button onClick={() => atualizarCredenciamento(p.id, 'approved')} className="btn-verde !px-3 !py-1.5 !text-[11px]">
+                          Aprovar
+                        </button>
+                        <button onClick={() => atualizarCredenciamento(p.id, 'suspended')} className="btn-contorno !px-3 !py-1.5 !text-[11px]">
+                          Suspender
+                        </button>
+                        <button onClick={() => atualizarCredenciamento(p.id, 'blocked')} className="btn-contorno !px-3 !py-1.5 !text-[11px]">
+                          Bloquear
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
 
         {/* -------------------------------------------------- cobertura */}

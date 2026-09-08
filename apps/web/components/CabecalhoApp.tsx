@@ -9,8 +9,12 @@ const NAV: Record<'customer' | 'professional' | 'admin', { href: string; rotulo:
   customer: [
     { href: '/cliente', rotulo: 'Serviços' },
     { href: '/cliente#pedidos', rotulo: 'Meus pedidos' },
+    { href: '/cliente/conta', rotulo: 'Minha conta' },
   ],
-  professional: [{ href: '/profissional', rotulo: 'Painel' }],
+  professional: [
+    { href: '/profissional', rotulo: 'Painel' },
+    { href: '/profissional/conta', rotulo: 'Minha conta' },
+  ],
   admin: [{ href: '/admin', rotulo: 'Backoffice' }],
 };
 

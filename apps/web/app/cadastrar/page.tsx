@@ -29,6 +29,7 @@ export default function Cadastrar() {
   const [telefone, setTelefone] = useState('');
   const [cpf, setCpf] = useState('');
   const [servicos, setServicos] = useState<string[]>([]);
+  const [aceitouTermos, setAceitouTermos] = useState(false);
 
   function escolherPapel(p: Papel) {
     setPapel(p);
@@ -111,6 +112,10 @@ export default function Cadastrar() {
     }
     if (senha !== confirmarSenha) {
       setErro('As senhas não coincidem.');
+      return;
+    }
+    if (!aceitouTermos) {
+      setErro('Você precisa aceitar os termos de uso e a política de privacidade.');
       return;
     }
     if (!supabase || !papel) {
@@ -252,13 +257,32 @@ export default function Cadastrar() {
                 <input type="email" className="campo" required placeholder="E-mail" value={email} onChange={(e) => setEmail(e.target.value)} aria-label="E-mail" />
                 <input type="password" className="campo" required placeholder="Senha" value={senha} onChange={(e) => setSenha(e.target.value)} aria-label="Senha" />
                 <input type="password" className="campo" required placeholder="Confirmar senha" value={confirmarSenha} onChange={(e) => setConfirmarSenha(e.target.value)} aria-label="Confirmar senha" />
+                <label className="flex items-start gap-2 text-sm text-tinta-50">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 h-4 w-4 accent-[#2563eb]"
+                    checked={aceitouTermos}
+                    onChange={(e) => setAceitouTermos(e.target.checked)}
+                  />
+                  <span>
+                    Li e aceito os{' '}
+                    <Link href="/termos" target="_blank" className="font-semibold text-tinta underline">
+                      termos de uso
+                    </Link>{' '}
+                    e a{' '}
+                    <Link href="/privacidade" target="_blank" className="font-semibold text-tinta underline">
+                      política de privacidade
+                    </Link>
+                    .
+                  </span>
+                </label>
                 {erro && <p className="rounded-lg border border-tinta-20 bg-tinta-5 px-4 py-3 text-sm font-semibold text-tinta">{erro}</p>}
                 {!supabaseConfigurado && (
                   <p className="rounded-lg border border-tinta-20 bg-tinta-5 px-4 py-3 text-xs text-tinta-70">
                     Ambiente sem Supabase configurado.
                   </p>
                 )}
-                <button className="btn-primario w-full" disabled={carregando}>
+                <button className="btn-primario w-full" disabled={carregando || !aceitouTermos}>
                   {carregando ? 'Enviando…' : 'Continuar'}
                 </button>
                 <button type="button" onClick={() => setEtapa('papel')} className="text-center text-sm text-tinta-50">

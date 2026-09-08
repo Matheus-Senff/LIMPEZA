@@ -141,6 +141,9 @@ export default function Entrar() {
                 <button className="btn-primario w-full" disabled={carregando}>
                   {carregando ? 'Entrando…' : 'Entrar'}
                 </button>
+                <Link href="/recuperar-senha" className="text-center text-sm text-tinta-50">
+                  Esqueci minha senha
+                </Link>
               </form>
             </div>
 
@@ -148,6 +151,15 @@ export default function Entrar() {
               Ainda não tem conta?{' '}
               <Link href="/cadastrar" className="font-semibold text-tinta">
                 Criar conta
+              </Link>
+            </p>
+            <p className="mt-3 text-center text-xs text-tinta-30">
+              <Link href="/termos" className="underline">
+                Termos de uso
+              </Link>{' '}
+              ·{' '}
+              <Link href="/privacidade" className="underline">
+                Política de privacidade
               </Link>
             </p>
           </>

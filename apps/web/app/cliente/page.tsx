@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { usePerfil } from '@/lib/usePerfil';
 import { supabase } from '@/lib/supabase';
 import { GradeServicos } from '@/components/GradeServicos';
@@ -65,9 +66,13 @@ export default function ClienteHome() {
             <p className="mt-1 text-sm text-tinta-50">Escolha um serviço acima para começar.</p>
           </div>
         ) : (
-          <ul className="cartao flex flex-col divide-y divide-tinta-10 p-2">
+          <div className="cartao flex flex-col divide-y divide-tinta-10 p-2">
             {pedidos.map((p) => (
-              <li key={p.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
+              <Link
+                key={p.id}
+                href={`/cliente/pedidos/${p.id}`}
+                className="flex flex-wrap items-center justify-between gap-3 p-4 transition hover:bg-tinta-5"
+              >
                 <div>
                   <p className="font-bold numero">
                     {new Date(p.scheduled_at).toLocaleString('pt-BR', {
@@ -85,9 +90,9 @@ export default function ClienteHome() {
                   {STATUS[p.status] ?? p.status}
                 </span>
                 <span className="font-bold text-verde-700 numero">{reais(p.price_cents)}</span>
-              </li>
+              </Link>
             ))}
-          </ul>
+          </div>
         )}
       </section>
     </main>

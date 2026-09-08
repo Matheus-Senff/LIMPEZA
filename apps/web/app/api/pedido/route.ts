@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { clienteComToken, tokenDaRequisicao } from '@/lib/supabase';
+import { partesDaData } from '@/lib/data';
 
 export const runtime = 'nodejs';
 
@@ -110,6 +111,41 @@ export async function POST(req: Request) {
 
   if (erroPedido || !pedidoSalvo) {
     return NextResponse.json({ erro: 'falha_pedido', mensagem: erroPedido?.message }, { status: 422 });
+  }
+
+  // Assinatura (semanal/quinzenal/mensal): registra a recorrência de verdade,
+  // não só o desconto no preço da primeira diária.
+  if (cotacao.frequency !== 'SINGLE') {
+    const { weekday, windowStart, startDate } = partesDaData(cotacao.scheduled_at);
+    const assistencia =
+      cotacao.frequency === 'WEEKLY' ? 'complete' : cotacao.frequency === 'BIWEEKLY' ? 'basic' : 'standard';
+    const passoDias = cotacao.frequency === 'WEEKLY' ? 7 : cotacao.frequency === 'BIWEEKLY' ? 14 : 30;
+    const proximaData = new Date(`${startDate}T00:00:00Z`);
+    proximaData.setUTCDate(proximaData.getUTCDate() + passoDias);
+
+    // A primeira diária já foi criada acima; next_run_date aponta pra
+    // segunda ocorrência, que o job de assinaturas gera mais pra frente.
+    const { data: assinatura } = await cliente
+      .from('subscriptions')
+      .insert({
+        customer_id: user.id,
+        address_id: enderecoSalvo.id,
+        service: cotacao.service,
+        frequency: cotacao.frequency,
+        minutes: cotacao.minutes,
+        addons: cotacao.addons,
+        weekday,
+        window_start: windowStart,
+        assistance_level: assistencia,
+        start_date: startDate,
+        next_run_date: proximaData.toISOString().slice(0, 10),
+      })
+      .select('id')
+      .single();
+
+    if (assinatura) {
+      await cliente.from('orders').update({ subscription_id: assinatura.id }).eq('id', pedidoSalvo.id);
+    }
   }
 
   // Avisa na hora todo profissional que atende esse serviço na região —
