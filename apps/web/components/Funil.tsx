@@ -68,6 +68,7 @@ export function Funil({
   const [ruleset, setRuleset] = useState<Ruleset>(RULESET_PADRAO);
   const [cidade, setCidade] = useState<string | null>(null);
   const [uf, setUf] = useState<string | null>(null);
+  const [bairro, setBairro] = useState<string | null>(null);
 
   const [opcionais, setOpcionais] = useState<string[]>([]);
   const [minutosBase, setMinutosBase] = useState(servico.sugeridoMinutos);
@@ -211,6 +212,7 @@ export function Funil({
       setRuleset(r.ruleset as Ruleset);
       setCidade(r.cidade ?? null);
       setUf(r.estado ?? null);
+      setBairro(r.bairro ?? null);
       avancarPara(2, areaPasso2);
     } catch {
       setErroCep('Não conseguimos validar seu CEP agora. Tente de novo em instantes.');
@@ -257,6 +259,7 @@ export function Funil({
             acesso,
             cidade,
             estado: uf,
+            bairro,
             homeType: tipoLar,
             bedrooms: quartos,
             bathrooms: banheiros,

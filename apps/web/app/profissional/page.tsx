@@ -5,6 +5,7 @@ import { usePerfil } from '@/lib/usePerfil';
 import { supabase } from '@/lib/supabase';
 import { horas, reais, porCodigo, OPCIONAIS } from '@/lib/catalogo';
 import { Modal } from '@/components/Modal';
+import { MapaOfertas, type OfertaNoMapa } from '@/components/MapaOfertas';
 
 interface DadosProfissional {
   rating_avg: number;
@@ -15,6 +16,7 @@ interface DadosProfissional {
 interface Detalhes {
   city: string;
   state: string;
+  district: string | null;
   home_type: 'HOUSE' | 'APARTMENT' | 'STUDIO';
   bedrooms: number;
   bathrooms: number;
@@ -45,6 +47,7 @@ export default function ProfissionalHome() {
   const [respondendo, setRespondendo] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [detalheAberto, setDetalheAberto] = useState<Oferta | null>(null);
+  const [visao, setVisao] = useState<'lista' | 'mapa'>('lista');
 
   const carregar = useCallback(async () => {
     if (!supabase) {
@@ -156,7 +159,27 @@ export default function ProfissionalHome() {
       )}
 
       <section>
-        <h2 className="mb-4 text-xl font-bold tracking-tight">Ofertas disponíveis</h2>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-xl font-bold tracking-tight">Ofertas disponíveis</h2>
+          <div className="flex gap-2 rounded-full bg-tinta-5 p-1">
+            <button
+              onClick={() => setVisao('lista')}
+              className={`rounded-full px-4 py-1.5 text-xs font-bold transition ${
+                visao === 'lista' ? 'bg-white text-tinta shadow-cartao' : 'text-tinta-50'
+              }`}
+            >
+              Lista
+            </button>
+            <button
+              onClick={() => setVisao('mapa')}
+              className={`rounded-full px-4 py-1.5 text-xs font-bold transition ${
+                visao === 'mapa' ? 'bg-white text-tinta shadow-cartao' : 'text-tinta-50'
+              }`}
+            >
+              Mapa
+            </button>
+          </div>
+        </div>
         {aviso && (
           <p className="mb-4 rounded-lg border border-tinta-20 bg-tinta-5 px-4 py-3 text-sm font-semibold text-tinta">
             {aviso}
@@ -169,6 +192,21 @@ export default function ProfissionalHome() {
             <p className="font-semibold">Nenhuma oferta no momento</p>
             <p className="mt-1 text-sm text-tinta-50">Pedidos novos na sua região aparecem aqui.</p>
           </div>
+        ) : visao === 'mapa' ? (
+          <MapaOfertas
+            ofertas={ofertas
+              .filter((o) => o.detalhes && o.orders)
+              .map(
+                (o): OfertaNoMapa => ({
+                  id: o.id,
+                  order_id: o.order_id,
+                  cidade: o.detalhes!.city,
+                  rotulo: porCodigo(o.orders!.service as never)?.nome ?? o.orders!.service,
+                  valor: reais(o.orders!.payout_cents),
+                }),
+              )}
+            onSelecionar={(id) => setDetalheAberto(ofertas.find((o) => o.id === id) ?? null)}
+          />
         ) : (
           <ul className="cartao flex flex-col divide-y divide-tinta-10 p-2">
             {ofertas.map((o) => {
@@ -180,6 +218,7 @@ export default function ProfissionalHome() {
                       {servico?.nome ?? o.orders?.service}
                       {o.detalhes && (
                         <span className="ml-2 rounded-full bg-tinta-5 px-2 py-0.5 text-[11px] font-bold text-tinta-70">
+                          {o.detalhes.district ? `${o.detalhes.district}, ` : ''}
                           {o.detalhes.city}/{o.detalhes.state}
                         </span>
                       )}
@@ -269,7 +308,9 @@ function DetalheOferta({ oferta }: { oferta: Oferta }) {
         <div>
           <p className="rotulo">Região</p>
           <p className="font-semibold">
-            {oferta.detalhes ? `${oferta.detalhes.city}/${oferta.detalhes.state}` : '—'}
+            {oferta.detalhes
+              ? `${oferta.detalhes.district ? `${oferta.detalhes.district}, ` : ''}${oferta.detalhes.city}/${oferta.detalhes.state}`
+              : '—'}
           </p>
         </div>
         <div>

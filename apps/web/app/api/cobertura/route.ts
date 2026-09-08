@@ -75,9 +75,28 @@ export async function POST(req: Request) {
     coberto: true,
     cidade: cobertura.city,
     estado: cobertura.state,
+    bairro: await bairroDoCep(cep),
     regiao: cobertura.region_code,
     ruleset: ruleset?.rules ?? RULESET_PADRAO,
     rulesetId: ruleset?.id ?? null,
     rulesetVersao: ruleset?.version ?? 0,
   });
+}
+
+/**
+ * Bairro real, via ViaCEP (serviço público brasileiro, sem chave) — nunca
+ * inventado. Best-effort: se o serviço estiver fora do ar, o pedido segue
+ * sem bairro em vez de travar o funil por causa de uma API de terceiro.
+ */
+async function bairroDoCep(cep: string): Promise<string | null> {
+  try {
+    const r = await fetch(`https://viacep.com.br/ws/${cep}/json/`, {
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!r.ok) return null;
+    const dados = await r.json();
+    return typeof dados.bairro === 'string' && dados.bairro ? dados.bairro : null;
+  } catch {
+    return null;
+  }
 }

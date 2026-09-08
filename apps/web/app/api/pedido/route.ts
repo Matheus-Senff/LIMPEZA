@@ -79,6 +79,7 @@ export async function POST(req: Request) {
       complement: endereco.complemento || null,
       city: endereco.cidade ?? '',
       state: (endereco.estado ?? '').slice(0, 2),
+      district: endereco.bairro || null,
       home_type: endereco.homeType ?? 'APARTMENT',
       bedrooms: Number(endereco.bedrooms ?? 2),
       bathrooms: Number(endereco.bathrooms ?? 1),
