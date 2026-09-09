@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { usePerfil } from '@/lib/usePerfil';
 import { supabase } from '@/lib/supabase';
 import { ContaAcesso } from '@/components/ContaAcesso';
+import { Modal } from '@/components/Modal';
 
 interface Endereco {
   id: string;
@@ -34,6 +35,7 @@ export default function ContaCliente() {
   const [mostrarFormEndereco, setMostrarFormEndereco] = useState(false);
   const [avisoEndereco, setAvisoEndereco] = useState<string | null>(null);
   const [removendo, setRemovendo] = useState<string | null>(null);
+  const [enderecoParaRemover, setEnderecoParaRemover] = useState<Endereco | null>(null);
 
   const carregarEnderecos = useCallback(async () => {
     if (!supabase) return;
@@ -41,6 +43,7 @@ export default function ContaCliente() {
       .from('addresses')
       .select('id, label, street, number, complement, city, state')
       .eq('customer_id', perfil.id)
+      .eq('active', true)
       .order('created_at', { ascending: false });
     setEnderecos(data ?? []);
   }, [perfil.id]);
@@ -94,16 +97,13 @@ export default function ContaCliente() {
     if (!supabase) return;
     setRemovendo(id);
     setAvisoEndereco(null);
-    const { error } = await supabase.from('addresses').delete().eq('id', id);
+    // Soft delete: pedidos antigos continuam com o endereço completo pro
+    // histórico, mesmo depois que o usuário "remove" ele daqui.
+    const { error } = await supabase.from('addresses').update({ active: false }).eq('id', id);
     setRemovendo(null);
+    setEnderecoParaRemover(null);
     if (error) {
-      // 23503 = violação de chave estrangeira: o endereço já foi usado em
-      // algum pedido, e o histórico não pode perder a referência dele.
-      setAvisoEndereco(
-        error.code === '23503'
-          ? 'Esse endereço já foi usado em um pedido e não pode ser removido — mas você pode parar de usá-lo escolhendo outro na próxima contratação.'
-          : 'Não foi possível remover esse endereço agora.',
-      );
+      setAvisoEndereco('Não foi possível remover esse endereço agora.');
       return;
     }
     await carregarEnderecos();
@@ -143,7 +143,7 @@ export default function ContaCliente() {
                   </p>
                 </div>
                 <button
-                  onClick={() => removerEndereco(e.id)}
+                  onClick={() => setEnderecoParaRemover(e)}
                   disabled={removendo === e.id}
                   className="text-xs font-semibold text-tinta-50 hover:text-tinta"
                 >
@@ -195,6 +195,30 @@ export default function ContaCliente() {
           </form>
         )}
       </section>
+
+      {enderecoParaRemover && (
+        <Modal titulo="Remover endereço" onFechar={() => setEnderecoParaRemover(null)}>
+          <p className="text-sm text-tinta-70">
+            Tem certeza que quer remover{' '}
+            <b className="text-tinta">
+              {enderecoParaRemover.label ?? `${enderecoParaRemover.street}, ${enderecoParaRemover.number}`}
+            </b>
+            ? Pedidos que já usaram esse endereço não são afetados.
+          </p>
+          <div className="mt-5 flex gap-2">
+            <button
+              onClick={() => removerEndereco(enderecoParaRemover.id)}
+              disabled={removendo === enderecoParaRemover.id}
+              className="btn-contorno"
+            >
+              {removendo === enderecoParaRemover.id ? 'Removendo…' : 'Remover'}
+            </button>
+            <button type="button" onClick={() => setEnderecoParaRemover(null)} className="text-sm font-semibold text-tinta-50">
+              Cancelar
+            </button>
+          </div>
+        </Modal>
+      )}
     </main>
   );
 }

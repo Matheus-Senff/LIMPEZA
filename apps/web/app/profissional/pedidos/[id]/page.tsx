@@ -6,6 +6,7 @@ import { usePerfil } from '@/lib/usePerfil';
 import { supabase } from '@/lib/supabase';
 import { horas, reais, porCodigo } from '@/lib/catalogo';
 import { ChatPedido } from '@/components/ChatPedido';
+import { rotuloStatusPedido } from '@/lib/statusPedido';
 
 interface Pedido {
   id: string;
@@ -27,13 +28,6 @@ interface Endereco {
   state: string;
   access_notes: string | null;
 }
-
-const STATUS: Record<string, string> = {
-  assigned: 'Confirmado',
-  in_progress: 'Em andamento',
-  completed: 'Concluído',
-  rated: 'Avaliado',
-};
 
 export default function PedidoProfissional({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -123,22 +117,25 @@ export default function PedidoProfissional({ params }: { params: Promise<{ id: s
       <div className="cartao flex flex-col gap-4 p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <span className="rounded-full bg-tinta-5 px-3 py-1 text-xs font-bold text-tinta-70">
-            {STATUS[pedido.status] ?? pedido.status}
+            {rotuloStatusPedido(pedido.status)}
           </span>
           <span className="font-bold text-verde-700 numero">{reais(pedido.payout_cents)}</span>
         </div>
         <div className="grid gap-3 text-sm sm:grid-cols-2">
           <div>
-            <p className="rotulo">Quando</p>
+            <p className="rotulo">Dia, Horário</p>
             <p className="font-semibold numero">
               {new Date(pedido.scheduled_at).toLocaleString('pt-BR', {
                 day: '2-digit',
                 month: 'short',
                 hour: '2-digit',
                 minute: '2-digit',
-              })}{' '}
-              · {horas(pedido.minutes)}
+              })}
             </p>
+          </div>
+          <div>
+            <p className="rotulo">Duração</p>
+            <p className="font-semibold numero">{horas(pedido.minutes)}</p>
           </div>
           {cliente && (
             <div>

@@ -2,12 +2,18 @@
 
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { guardarSenhaPendente } from '@/lib/senhaPendente';
 
 /**
  * E-mail e senha são credenciais de login — mudam só com confirmação por
- * e-mail, nunca de forma instantânea aqui dentro. Senha reaproveita o
- * mesmo link de "esqueci minha senha" já existente, em vez de aceitar uma
- * senha nova direto no formulário.
+ * e-mail, nunca de forma instantânea aqui dentro.
+ *
+ * A senha nova é digitada aqui (como o e-mail), mas só é aplicada depois
+ * que o usuário clica no link de confirmação enviado — o Supabase não tem
+ * um jeito de "trocar senha pendente de confirmação", então a senha fica
+ * guardada só no navegador (nunca em servidor nenhum) até a confirmação;
+ * se o link for aberto em outro aparelho, a tela de confirmação pede a
+ * senha de novo em vez de aplicar às cegas.
  */
 export function ContaAcesso({ email }: { email: string }) {
   const [editandoEmail, setEditandoEmail] = useState(false);
@@ -15,6 +21,9 @@ export function ContaAcesso({ email }: { email: string }) {
   const [enviandoEmail, setEnviandoEmail] = useState(false);
   const [avisoEmail, setAvisoEmail] = useState<string | null>(null);
 
+  const [editandoSenha, setEditandoSenha] = useState(false);
+  const [novaSenha, setNovaSenha] = useState('');
+  const [confirmarSenha, setConfirmarSenha] = useState('');
   const [enviandoSenha, setEnviandoSenha] = useState(false);
   const [avisoSenha, setAvisoSenha] = useState<string | null>(null);
 
@@ -34,15 +43,28 @@ export function ContaAcesso({ email }: { email: string }) {
     setNovoEmail('');
   }
 
-  async function pedirTrocaDeSenha() {
+  async function confirmarNovaSenha(e: React.FormEvent) {
+    e.preventDefault();
+    setAvisoSenha(null);
+    if (novaSenha.length < 6) {
+      setAvisoSenha('A senha precisa ter pelo menos 6 caracteres.');
+      return;
+    }
+    if (novaSenha !== confirmarSenha) {
+      setAvisoSenha('As senhas não coincidem.');
+      return;
+    }
     if (!supabase) return;
     setEnviandoSenha(true);
-    setAvisoSenha(null);
+    guardarSenhaPendente(novaSenha);
     await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/redefinir-senha`,
     });
     setEnviandoSenha(false);
-    setAvisoSenha(`Enviamos um link para ${email} pra você definir uma senha nova.`);
+    setAvisoSenha(`Enviamos um link de confirmação para ${email}. A senha só muda depois que você clicar nele.`);
+    setEditandoSenha(false);
+    setNovaSenha('');
+    setConfirmarSenha('');
   }
 
   return (
@@ -91,12 +113,51 @@ export function ContaAcesso({ email }: { email: string }) {
 
         <div className="border-t border-tinta-10 pt-4">
           <p className="rotulo mb-1">Senha</p>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-tinta-50">Por segurança, a troca é feita por um link enviado ao seu e-mail.</p>
-            <button onClick={pedirTrocaDeSenha} disabled={enviandoSenha} className="text-xs font-semibold text-azul-600">
-              {enviandoSenha ? 'Enviando…' : 'Alterar senha'}
-            </button>
-          </div>
+          {!editandoSenha ? (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-tinta-50">Por segurança, a troca só vale depois de confirmada por e-mail.</p>
+              <button onClick={() => setEditandoSenha(true)} className="text-xs font-semibold text-azul-600">
+                Alterar senha
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={confirmarNovaSenha} className="flex flex-col gap-2">
+              <input
+                type="password"
+                required
+                className="campo"
+                placeholder="Senha nova"
+                value={novaSenha}
+                onChange={(e) => setNovaSenha(e.target.value)}
+                aria-label="Senha nova"
+              />
+              <input
+                type="password"
+                required
+                className="campo"
+                placeholder="Confirmar senha"
+                value={confirmarSenha}
+                onChange={(e) => setConfirmarSenha(e.target.value)}
+                aria-label="Confirmar senha nova"
+              />
+              <div className="flex gap-2">
+                <button className="btn-contorno !px-4 !py-2 !text-xs" disabled={enviandoSenha}>
+                  {enviandoSenha ? 'Enviando…' : 'Enviar confirmação'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditandoSenha(false);
+                    setNovaSenha('');
+                    setConfirmarSenha('');
+                  }}
+                  className="text-xs font-semibold text-tinta-50"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          )}
           {avisoSenha && <p className="mt-2 text-xs font-semibold text-tinta">{avisoSenha}</p>}
         </div>
       </div>

@@ -8,6 +8,7 @@ import { horas, reais, porCodigo, OPCIONAIS } from '@/lib/catalogo';
 import { ChatPedido } from '@/components/ChatPedido';
 import { Modal } from '@/components/Modal';
 import { Contador } from '@/components/Contador';
+import { rotuloStatusPedido } from '@/lib/statusPedido';
 
 interface Pedido {
   id: string;
@@ -44,18 +45,6 @@ function mensagemNaoEditavel(status: string): string {
   if (status === 'searching_professional') return '';
   return 'Esse pedido já foi aceito por um profissional e não pode mais ser editado.';
 }
-
-const STATUS: Record<string, string> = {
-  searching_professional: 'Procurando profissional',
-  assigned: 'Profissional confirmado',
-  in_progress: 'Em andamento',
-  completed: 'Concluído',
-  rated: 'Avaliado',
-  cancelled_by_customer: 'Cancelado',
-  cancelled_by_professional: 'Cancelado pelo profissional',
-  no_show: 'Profissional não compareceu',
-  refunded: 'Reembolsado',
-};
 
 const TIPOS: { code: Endereco['home_type']; nome: string }[] = [
   { code: 'HOUSE', nome: 'Casa' },
@@ -238,22 +227,25 @@ export default function PedidoCliente({ params }: { params: Promise<{ id: string
       <button onClick={abrirDetalhes} className="cartao flex flex-col gap-4 p-6 text-left transition hover:border-tinta-20">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <span className="rounded-full bg-tinta-5 px-3 py-1 text-xs font-bold text-tinta-70">
-            {STATUS[pedido.status] ?? pedido.status}
+            {rotuloStatusPedido(pedido.status)}
           </span>
           <span className="font-bold text-verde-700 numero">{reais(pedido.price_cents)}</span>
         </div>
         <div className="grid gap-3 text-sm sm:grid-cols-2">
           <div>
-            <p className="rotulo">Quando</p>
+            <p className="rotulo">Dia, Horário</p>
             <p className="font-semibold numero">
               {new Date(pedido.scheduled_at).toLocaleString('pt-BR', {
                 day: '2-digit',
                 month: 'short',
                 hour: '2-digit',
                 minute: '2-digit',
-              })}{' '}
-              · {horas(pedido.minutes)}
+              })}
             </p>
+          </div>
+          <div>
+            <p className="rotulo">Duração</p>
+            <p className="font-semibold numero">{horas(pedido.minutes)}</p>
           </div>
           {endereco && (
             <div>

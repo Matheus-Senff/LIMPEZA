@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePerfil } from '@/lib/usePerfil';
 import { supabase } from '@/lib/supabase';
 import { horas, reais } from '@/lib/catalogo';
+import { rotuloStatusPedido } from '@/lib/statusPedido';
 
 interface Pedido {
   id: string;
@@ -15,15 +16,6 @@ interface Pedido {
   status: string;
   price_cents: number;
 }
-
-const STATUS: Record<string, string> = {
-  searching_professional: 'Procurando profissional',
-  assigned: 'Profissional confirmado',
-  in_progress: 'Em andamento',
-  completed: 'Concluído',
-  rated: 'Avaliado',
-  cancelled_by_customer: 'Cancelado',
-};
 
 export default function MeusPedidosCliente() {
   const perfil = usePerfil();
@@ -86,7 +78,7 @@ export default function MeusPedidosCliente() {
                 </p>
               </div>
               <span className="rounded-full bg-tinta-5 px-3 py-1 text-xs font-bold text-tinta-70">
-                {STATUS[p.status] ?? p.status}
+                {rotuloStatusPedido(p.status)}
               </span>
               <span className="font-bold text-verde-700 numero">{reais(p.price_cents)}</span>
             </Link>
