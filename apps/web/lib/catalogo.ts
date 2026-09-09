@@ -1,12 +1,6 @@
-export type ServiceCode =
-  | 'CLEANING'
-  | 'HEAVY_CLEANING'
-  | 'PRE_MOVING_CLEANING'
-  | 'POST_WORK_CLEANING'
-  | 'BUSINESS_CLEANING'
-  | 'IRONING'
-  | 'FURNITURE_ASSEMBLY'
-  | 'HOME_ASSISTANCE';
+// A admin pode criar/remover tipo de serviço pela tela (banco, sem mais
+// enum no Postgres) — não é mais um conjunto fechado de 8 valores.
+export type ServiceCode = string;
 
 export interface Servico {
   code: ServiceCode;
