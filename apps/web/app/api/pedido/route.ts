@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { clienteComToken, tokenDaRequisicao } from '@/lib/supabase';
+import { clienteComToken, clienteServico, tokenDaRequisicao } from '@/lib/supabase';
 import { partesDaData } from '@/lib/data';
 import { bairroDoCep } from '@/lib/viacep';
-import { stripe, stripeConfigurado } from '@/lib/stripe';
+import { stripe, stripeConfigurado, criarSessaoCheckout } from '@/lib/stripe';
 import { buscarPorCodigo } from '@/lib/catalogoDb';
 
 export const runtime = 'nodejs';
@@ -147,39 +147,22 @@ export async function POST(req: Request) {
     // que o webhook confirmar o pagamento — ver /api/webhooks/stripe.
     const origem = new URL(req.url).origin;
     const servico = await buscarPorCodigo(cotacao.service);
-    const paramsBase = {
-      mode: 'payment' as const,
-      customer_email: user.email ?? undefined,
-      line_items: [
-        {
-          quantity: 1,
-          price_data: {
-            currency: 'brl',
-            unit_amount: cotacao.price_cents,
-            product_data: { name: `Plano Limpo — ${servico?.nome ?? cotacao.service}` },
-          },
-        },
-      ],
-      metadata: { order_id: pedidoSalvo.id, metodo },
-      success_url: `${origem}/cliente/pedidos/${pedidoSalvo.id}?pago=processando`,
-      cancel_url: `${origem}/cliente/pedidos/${pedidoSalvo.id}?pagamento=cancelado`,
-    };
     try {
-      // Pix, débito e crédito juntos — quem escolhe de fato é o cliente na
-      // própria tela da Stripe (nosso rádio de Pix/Cartão vira só uma
-      // preferência inicial, não uma restrição).
-      let sessao;
-      try {
-        sessao = await stripe.checkout.sessions.create({ ...paramsBase, payment_method_types: ['card', 'pix'] });
-      } catch {
-        // Pix ainda não habilitado nas configurações da conta Stripe: cai
-        // pra cartão em vez de quebrar o pagamento inteiro. Assim que o Pix
-        // for ligado no dashboard, volta a aparecer sozinho, sem precisar
-        // mexer em código.
-        sessao = await stripe.checkout.sessions.create({ ...paramsBase, payment_method_types: ['card'] });
-      }
+      const sessao = await criarSessaoCheckout({
+        origem,
+        orderId: pedidoSalvo.id,
+        priceCents: cotacao.price_cents,
+        nomeServico: servico?.nome ?? cotacao.service,
+        customerEmail: user.email ?? undefined,
+        metodo,
+      });
 
       if (!sessao.url) throw new Error('sessão sem url de checkout');
+
+      const servicoRole = clienteServico();
+      if (servicoRole) {
+        await servicoRole.from('orders').update({ stripe_checkout_session_id: sessao.id }).eq('id', pedidoSalvo.id);
+      }
 
       return NextResponse.json({
         codigo: pedidoSalvo.code,

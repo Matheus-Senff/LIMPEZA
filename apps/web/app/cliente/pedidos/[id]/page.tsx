@@ -143,6 +143,24 @@ export default function PedidoCliente({ params }: { params: Promise<{ id: string
     return () => clearInterval(intervalo);
   }, [pago, pedido?.status, carregar]);
 
+  async function pagarNovamente() {
+    if (!supabase) return;
+    setEnviando(true);
+    setAviso(null);
+    const { data: sessao } = await supabase.auth.getSession();
+    const token = sessao.session?.access_token;
+    const r = await fetch(`/api/pedido/${id}/reenviar-pagamento`, {
+      method: 'POST',
+      headers: token ? { authorization: `Bearer ${token}` } : {},
+    }).then((x) => x.json());
+    setEnviando(false);
+    if (r.checkoutUrl) {
+      window.location.href = r.checkoutUrl;
+      return;
+    }
+    setAviso(r.mensagem ?? 'Não foi possível gerar uma nova cobrança agora.');
+  }
+
   async function cancelar() {
     if (!supabase) return;
     if (!motivoCancelamento.trim()) {
@@ -333,9 +351,15 @@ export default function PedidoCliente({ params }: { params: Promise<{ id: string
 
       {pagamentoCancelado && pedido.status === 'pending_payment' && (
         <p className="rounded-lg border border-tinta-10 bg-tinta-5 px-4 py-3 text-sm text-tinta-70">
-          O pagamento foi cancelado antes de terminar. Esse pedido ficou aguardando pagamento — para
-          pagar, cancele-o abaixo e refaça o pedido em Serviços.
+          O pagamento foi cancelado antes de terminar. Esse pedido ficou aguardando pagamento — clique
+          em &quot;Pagar novamente&quot; abaixo pra retomar sem perder o horário e o preço já fechados.
         </p>
+      )}
+
+      {pedido.status === 'pending_payment' && (
+        <button onClick={pagarNovamente} disabled={enviando} className="btn-primario w-fit">
+          {enviando ? 'Abrindo pagamento…' : 'Pagar novamente'}
+        </button>
       )}
 
       {pedido.status === 'searching_professional' && (
