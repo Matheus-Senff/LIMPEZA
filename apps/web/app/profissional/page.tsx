@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { usePerfil } from '@/lib/usePerfil';
 import { supabase } from '@/lib/supabase';
-import { horas, reais, porCodigo, OPCIONAIS } from '@/lib/catalogo';
+import { horas, reais } from '@/lib/catalogo';
+import { useCatalogo } from '@/lib/useCatalogo';
 import { Modal } from '@/components/Modal';
 import { MapaOfertas, type OfertaNoMapa } from '@/components/MapaOfertas';
 
@@ -44,6 +45,8 @@ const TIPOS: Record<string, string> = { HOUSE: 'Casa', APARTMENT: 'Apartamento',
 
 export default function ProfissionalHome() {
   const perfil = usePerfil();
+  const { servicos: catalogoServicos } = useCatalogo();
+  const porCodigo = (code: string) => catalogoServicos.find((s) => s.code === code);
   const [dados, setDados] = useState<DadosProfissional | null>(null);
   const [ofertas, setOfertas] = useState<Oferta[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -344,8 +347,9 @@ export default function ProfissionalHome() {
 }
 
 function DetalheOferta({ oferta }: { oferta: Oferta }) {
-  const servico = oferta.orders ? porCodigo(oferta.orders.service as never) : null;
-  const nomesOpcionais = OPCIONAIS.filter((o) => oferta.orders?.addons?.includes(o.code)).map((o) => o.nome);
+  const { servicos: catalogoServicos, opcionais } = useCatalogo();
+  const servico = oferta.orders ? catalogoServicos.find((s) => s.code === oferta.orders!.service) : null;
+  const nomesOpcionais = opcionais.filter((o) => oferta.orders?.addons?.includes(o.code)).map((o) => o.nome);
 
   return (
     <div className="flex flex-col gap-4">

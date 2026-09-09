@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { reais, porCodigo } from '@/lib/catalogo';
+import { reais } from '@/lib/catalogo';
+import { useCatalogo } from '@/lib/useCatalogo';
 import { rotuloStatusPedido } from '@/lib/statusPedido';
 
 interface PedidoAdmin {
@@ -34,6 +35,8 @@ const FILTROS_FIXOS = [
 ];
 
 export default function AdminPedidos() {
+  const { servicos: catalogoServicos } = useCatalogo();
+  const porCodigo = (code: string) => catalogoServicos.find((s) => s.code === code);
   const [pedidos, setPedidos] = useState<PedidoAdmin[]>([]);
   const [filtroStatus, setFiltroStatus] = useState('todos');
   const [carregando, setCarregando] = useState(true);

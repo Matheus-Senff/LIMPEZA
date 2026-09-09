@@ -2,16 +2,17 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { SERVICOS } from '@/lib/catalogo';
+import { useCatalogo } from '@/lib/useCatalogo';
 import { IconeServico, type TipoIcone } from './Marca';
 
 export function GradeServicos() {
   const [publico, setPublico] = useState<'lar' | 'empresa'>('lar');
+  const { servicos } = useCatalogo();
 
   const lista =
     publico === 'lar'
-      ? SERVICOS.filter((s) => s.publico === 'lar')
-      : SERVICOS.filter((s) => s.publico === 'empresa' || s.code === 'FURNITURE_ASSEMBLY');
+      ? servicos.filter((s) => s.publico === 'lar')
+      : servicos.filter((s) => s.publico === 'empresa' || s.code === 'FURNITURE_ASSEMBLY');
 
   return (
     <section id="servicos" className="scroll-mt-20">

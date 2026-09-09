@@ -5,13 +5,16 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { usePerfil } from '@/lib/usePerfil';
 import { Funil } from '@/components/Funil';
-import { porSlug } from '@/lib/catalogo';
+import { useCatalogo } from '@/lib/useCatalogo';
 
 export default function ContratarPage({ params }: { params: Promise<{ servico: string }> }) {
   const { servico: slug } = use(params);
   const searchParams = useSearchParams();
   const perfil = usePerfil();
-  const servico = porSlug(slug);
+  const { servicos, carregando } = useCatalogo();
+  const servico = servicos.find((s) => s.slug === slug);
+
+  if (carregando && !servico) return null;
 
   if (!servico) {
     return (

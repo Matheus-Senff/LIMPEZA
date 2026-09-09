@@ -3,20 +3,13 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  OPCIONAIS,
-  PLANOS,
-  SERVICOS,
-  horas,
-  reais,
-  type FrequencyCode,
-  type Servico,
-} from '@/lib/catalogo';
+import { PLANOS, horas, reais, type FrequencyCode, type Servico } from '@/lib/catalogo';
 import { RULESET_PADRAO } from '@/lib/rulesetPadrao';
 import { priceGrid, quote } from '@/lib/pricing';
 import type { Ruleset } from '@/lib/pricing/types';
 import { faixaDaJanela, janelasDoDia, proximosDias, rotuloData } from '@/lib/agenda';
 import { supabase } from '@/lib/supabase';
+import { useCatalogo } from '@/lib/useCatalogo';
 import { IconeServico, type TipoIcone } from './Marca';
 import { Contador } from './Contador';
 
@@ -62,6 +55,7 @@ export function Funil({
   perfil: PerfilCliente;
 }) {
   const router = useRouter();
+  const { servicos: SERVICOS, opcionais: OPCIONAIS } = useCatalogo();
 
   // ---------------------------------------------------------------- estado
   const [passo, setPasso] = useState<Passo>(1);
