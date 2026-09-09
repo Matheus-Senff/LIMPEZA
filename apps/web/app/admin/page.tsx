@@ -249,7 +249,7 @@ function PainelAdmin() {
                 key={d.iso}
                 onClick={() => setQuandoIdx(i)}
                 className={`rounded-full border-2 px-4 py-1.5 text-xs font-bold transition ${
-                  quandoIdx === i ? 'border-tinta bg-tinta text-white' : 'border-tinta-20 text-tinta-50'
+                  quandoIdx === i ? 'border-tinta-solida bg-tinta-solida text-white' : 'border-tinta-20 text-tinta-50'
                 }`}
               >
                 {d.hoje ? 'hoje' : `${d.diaSemana} ${d.diaMes}`}

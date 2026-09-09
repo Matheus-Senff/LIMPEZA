@@ -443,7 +443,7 @@ export function Funil({
                         />
                         <span className="font-semibold">{o.nome}</span>
                       </span>
-                      <span className="shrink-0 rounded-full bg-white px-2 py-0.5 text-[11px] font-bold text-tinta-50 numero">
+                      <span className="shrink-0 rounded-full bg-superficie px-2 py-0.5 text-[11px] font-bold text-tinta-50 numero">
                         +{o.minutos}min
                       </span>
                     </label>

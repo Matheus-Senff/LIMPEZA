@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Figtree } from 'next/font/google';
 import './globals.css';
+import { scriptSemFlash } from '@/lib/tema';
 
 const figtree = Figtree({
   subsets: ['latin'],
@@ -26,7 +27,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className={figtree.variable}>
+    <html lang="pt-BR" className={figtree.variable} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: scriptSemFlash }} />
+      </head>
       <body>{children}</body>
     </html>
   );

@@ -9,6 +9,11 @@ export interface OfertaNoMapa {
   cidade: string;
   rotulo: string;
   valor: string;
+  /** Centro aproximado do bairro, quando já geocodificado — mais preciso
+   * que o centro da cidade, mas o pino ainda cai num ponto aleatório
+   * próximo, nunca no endereço exato. */
+  bairroLat?: number | null;
+  bairroLng?: number | null;
 }
 
 /**
@@ -38,11 +43,19 @@ function hash(texto: string): number {
   return h;
 }
 
-function posicaoNoMapa(cidade: string, orderId: string): [number, number] | null {
-  const centro = CENTRO_CIDADES[chaveCidade(cidade)];
+function posicaoNoMapa(o: OfertaNoMapa): [number, number] | null {
+  const h = hash(o.order_id);
+  if (o.bairroLat != null && o.bairroLng != null) {
+    // Bairro já geocodificado: variação bem menor (~150m), só pra não
+    // empilhar vários pedidos do mesmo bairro no mesmo pixel.
+    const dLat = (((h % 2000) - 1000) / 1000) * 0.0015;
+    const dLng = ((((h >> 11) % 2000) - 1000) / 1000) * 0.0015;
+    return [o.bairroLat + dLat, o.bairroLng + dLng];
+  }
+
+  const centro = CENTRO_CIDADES[chaveCidade(o.cidade)];
   if (!centro) return null;
-  const h = hash(orderId);
-  // ±0.01° (~1km) de variação, só pra distribuir os pinos visualmente.
+  // Sem bairro geocodificado ainda: distribui em qualquer ponto da cidade.
   const dLat = (((h % 2000) - 1000) / 1000) * 0.01;
   const dLng = ((((h >> 11) % 2000) - 1000) / 1000) * 0.01;
   return [centro[0] + dLat, centro[1] + dLng];
@@ -99,7 +112,7 @@ export function MapaOfertas({
       });
 
       for (const o of ofertas) {
-        const pos = posicaoNoMapa(o.cidade, o.order_id);
+        const pos = posicaoNoMapa(o);
         if (!pos) continue;
         const marcador = L.marker(pos, { icon: icone }).bindTooltip(`${o.rotulo} · ${o.valor}`);
         marcador.on('click', () => onSelecionar(o.id));

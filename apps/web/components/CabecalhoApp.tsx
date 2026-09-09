@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Logo } from './Marca';
 import { supabase } from '@/lib/supabase';
+import { AlternarTema } from './AlternarTema';
 
 const NAV: Record<'customer' | 'professional' | 'admin', { href: string; rotulo: string }[]> = {
   customer: [
@@ -28,7 +29,7 @@ export function CabecalhoApp({ papel }: { papel: 'customer' | 'professional' | '
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-tinta-10 bg-white/95 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-tinta-10 bg-superficie/95 backdrop-blur">
       <div className="container-app flex h-16 items-center justify-between gap-6">
         <div className="flex items-center gap-8">
           <Logo compacto />
@@ -40,9 +41,12 @@ export function CabecalhoApp({ papel }: { papel: 'customer' | 'professional' | '
             ))}
           </nav>
         </div>
-        <button onClick={sair} className="text-sm font-semibold text-tinta-50 hover:text-tinta">
-          Sair
-        </button>
+        <div className="flex items-center gap-3">
+          <button onClick={sair} className="text-sm font-semibold text-tinta-50 hover:text-tinta">
+            Sair
+          </button>
+          <AlternarTema />
+        </div>
       </div>
     </header>
   );

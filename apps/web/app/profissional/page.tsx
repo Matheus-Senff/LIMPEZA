@@ -21,6 +21,8 @@ interface Detalhes {
   bedrooms: number;
   bathrooms: number;
   has_pets: boolean;
+  bairroLat?: number | null;
+  bairroLng?: number | null;
 }
 
 interface Oferta {
@@ -86,6 +88,41 @@ export default function ProfissionalHome() {
   useEffect(() => {
     carregar();
   }, [carregar]);
+
+  // Geocodifica o bairro só quando o profissional realmente abre o mapa —
+  // evita bater no serviço externo (Nominatim) pra ofertas que ninguém
+  // olha no mapa. Resultado fica em cache no banco pro próximo pedido do
+  // mesmo bairro não precisar geocodificar de novo.
+  useEffect(() => {
+    if (visao !== 'mapa' || !supabase) return;
+    const pendentes = ofertas.filter(
+      (o) => o.detalhes?.district && o.detalhes.bairroLat === undefined,
+    );
+    if (pendentes.length === 0) return;
+
+    (async () => {
+      const { data: sessao } = await supabase!.auth.getSession();
+      const token = sessao.session?.access_token;
+      const resultados = await Promise.all(
+        pendentes.map(async (o) => {
+          const r = await fetch('/api/geocodificar-bairro', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
+            body: JSON.stringify({ city: o.detalhes!.city, state: o.detalhes!.state, district: o.detalhes!.district }),
+          }).then((x) => x.json());
+          return { id: o.id, lat: r.lat ?? null, lng: r.lng ?? null };
+        }),
+      );
+      setOfertas((atual) =>
+        atual.map((o) => {
+          const achado = resultados.find((r) => r.id === o.id);
+          if (!achado || !o.detalhes) return o;
+          return { ...o, detalhes: { ...o.detalhes, bairroLat: achado.lat, bairroLng: achado.lng } };
+        }),
+      );
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visao, ofertas]);
 
   // Se o cliente editar o pedido enquanto a oferta ainda está pendente, o
   // profissional vê a mudança sem precisar recarregar a página. O RLS do
@@ -165,7 +202,7 @@ export default function ProfissionalHome() {
             <button
               onClick={() => setVisao('lista')}
               className={`rounded-full px-4 py-1.5 text-xs font-bold transition ${
-                visao === 'lista' ? 'bg-white text-tinta shadow-cartao' : 'text-tinta-50'
+                visao === 'lista' ? 'bg-superficie text-tinta shadow-cartao' : 'text-tinta-50'
               }`}
             >
               Lista
@@ -173,7 +210,7 @@ export default function ProfissionalHome() {
             <button
               onClick={() => setVisao('mapa')}
               className={`rounded-full px-4 py-1.5 text-xs font-bold transition ${
-                visao === 'mapa' ? 'bg-white text-tinta shadow-cartao' : 'text-tinta-50'
+                visao === 'mapa' ? 'bg-superficie text-tinta shadow-cartao' : 'text-tinta-50'
               }`}
             >
               Mapa
@@ -203,6 +240,8 @@ export default function ProfissionalHome() {
                   cidade: o.detalhes!.city,
                   rotulo: porCodigo(o.orders!.service as never)?.nome ?? o.orders!.service,
                   valor: reais(o.orders!.payout_cents),
+                  bairroLat: o.detalhes!.bairroLat,
+                  bairroLng: o.detalhes!.bairroLng,
                 }),
               )}
             onSelecionar={(id) => setDetalheAberto(ofertas.find((o) => o.id === id) ?? null)}
