@@ -23,6 +23,10 @@ import { Contador } from './Contador';
 type Passo = 1 | 2 | 3 | 4 | 5 | 6;
 type TipoLar = 'HOUSE' | 'APARTMENT' | 'STUDIO';
 
+// Sinal só pra ajustar o texto na tela — a chave publicável não é segredo.
+// Quem decide de verdade se cobra ou simula é o servidor, em /api/pedido.
+const STRIPE_ATIVA = Boolean(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
+
 const TIPOS: { code: TipoLar; nome: string }[] = [
   { code: 'HOUSE', nome: 'Casa' },
   { code: 'APARTMENT', nome: 'Apartamento' },
@@ -272,6 +276,13 @@ export function Funil({
 
       if (r.erro || !r.codigo) {
         setErroFinal(r.mensagem ?? 'Não foi possível fechar o pedido agora. Tente de novo em instantes.');
+        return;
+      }
+      if (r.checkoutUrl) {
+        // Pagamento de verdade: sai do app e vai pro checkout hospedado pela
+        // Stripe. A tela de "pedido confirmado" só aparece depois, quando a
+        // pessoa volta — o pagamento ainda não foi confirmado aqui.
+        window.location.href = r.checkoutUrl;
         return;
       }
       setPedido({ codigo: r.codigo, simulado: r.simulado });
@@ -709,12 +720,16 @@ export function Funil({
                   {
                     code: 'pix' as const,
                     titulo: 'Pix',
-                    texto: 'Pagamento no momento do pedido. A vaga é reservada na hora.',
+                    texto: STRIPE_ATIVA
+                      ? 'Você paga escaneando o QR code. O pedido entra na busca de profissional assim que o Pix cair.'
+                      : 'Pagamento no momento do pedido. A vaga é reservada na hora.',
                   },
                   {
                     code: 'credit_card' as const,
                     titulo: 'Cartão de crédito',
-                    texto: 'Autorizamos agora e só cobramos depois que o serviço for concluído.',
+                    texto: STRIPE_ATIVA
+                      ? 'Cobrado no momento da confirmação do pedido.'
+                      : 'Autorizamos agora e só cobramos depois que o serviço for concluído.',
                   },
                 ]
               ).map((m) => (
@@ -739,8 +754,9 @@ export function Funil({
               ))}
 
               <div className="rounded-xl bg-tinta-5 px-4 py-3 text-xs font-semibold text-tinta-70">
-                Pagamento simulado nesta versão: nenhuma cobrança real é feita. O pedido é registrado
-                de verdade e segue para a busca de profissional.
+                {STRIPE_ATIVA
+                  ? 'Pagamento processado com segurança pela Stripe. O pedido entra na busca de profissional assim que o pagamento for confirmado.'
+                  : 'Pagamento simulado nesta versão: nenhuma cobrança real é feita. O pedido é registrado de verdade e segue para a busca de profissional.'}
               </div>
 
               {erroFinal && (

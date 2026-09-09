@@ -107,12 +107,15 @@ export default function PedidoProfissional({ params }: { params: Promise<{ id: s
     }
     setEnviando(true);
     setAviso(null);
-    const { data } = await supabase.rpc('fn_cancelar_pedido_profissional', {
-      p_order_id: id,
-      p_motivo: motivoCancelamento.trim(),
-    });
+    const { data: sessao } = await supabase.auth.getSession();
+    const token = sessao.session?.access_token;
+    const r = await fetch(`/api/pedido/${id}/cancelar-profissional`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ motivo: motivoCancelamento.trim() }),
+    }).then((x) => x.json());
     setEnviando(false);
-    if (!data) {
+    if (!r.cancelado) {
       setAviso('Não foi possível cancelar esse serviço agora.');
       return;
     }

@@ -2,20 +2,22 @@ import { NextResponse } from 'next/server';
 import { clienteComToken, tokenDaRequisicao } from '@/lib/supabase';
 import { partesDaData } from '@/lib/data';
 import { bairroDoCep } from '@/lib/viacep';
+import { stripe, stripeConfigurado } from '@/lib/stripe';
+import { porCodigo } from '@/lib/catalogo';
 
 export const runtime = 'nodejs';
 
 /**
  * Passo 6: fecha o pedido a partir de uma cotação válida.
  *
- * O preço e o repasse usados aqui vêm da cotação assinada gravada em `quotes`
- * (nunca do corpo da requisição) — o valor mostrado na tela é o valor cobrado.
+ * O preço usado aqui vem da cotação assinada gravada em `quotes` (nunca do
+ * corpo da requisição) — o valor mostrado na tela é o valor cobrado.
  *
- * Pagamento SIMULADO nesta versão — nenhuma chave de gateway no projeto.
- * Quando o Pagar.me/Stripe entrar, só este arquivo muda:
- *   Pix    -> cria a cobrança e espera o webhook marcar `paid`
- *   Cartão -> tokeniza e AUTORIZA agora; a captura acontece no check-out
- *             do profissional, nunca antes do serviço acontecer.
+ * Com a Stripe configurada, o pedido nasce como 'pending_payment' e só vira
+ * visível pros profissionais depois que o webhook confirma o pagamento —
+ * ninguém recebe oferta de um pedido que ninguém pagou. Sem a chave
+ * configurada (ambiente de teste/local), cai no fluxo simulado antigo:
+ * pedido nasce já buscando profissional, sem cobrança nenhuma.
  */
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
@@ -129,7 +131,7 @@ export async function POST(req: Request) {
       minutes: cotacao.minutes,
       addons: cotacao.addons,
       scheduled_at: cotacao.scheduled_at,
-      status: 'searching_professional',
+      status: stripeConfigurado ? 'pending_payment' : 'searching_professional',
       price_cents: cotacao.price_cents,
       payout_cents: cotacao.payout_cents,
     })
@@ -140,8 +142,58 @@ export async function POST(req: Request) {
     return NextResponse.json({ erro: 'falha_pedido', mensagem: erroPedido?.message }, { status: 422 });
   }
 
-  // Assinatura (semanal/quinzenal/mensal): registra a recorrência de verdade,
-  // não só o desconto no preço da primeira diária.
+  if (stripeConfigurado && stripe) {
+    // A assinatura (se houver) e o broadcast de ofertas só acontecem depois
+    // que o webhook confirmar o pagamento — ver /api/webhooks/stripe.
+    const origem = new URL(req.url).origin;
+    const servico = porCodigo(cotacao.service as never);
+    try {
+      const sessao = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        payment_method_types: metodo === 'pix' ? ['pix'] : ['card'],
+        customer_email: user.email ?? undefined,
+        line_items: [
+          {
+            quantity: 1,
+            price_data: {
+              currency: 'brl',
+              unit_amount: cotacao.price_cents,
+              product_data: { name: `Plano Limpo — ${servico?.nome ?? cotacao.service}` },
+            },
+          },
+        ],
+        metadata: { order_id: pedidoSalvo.id, metodo },
+        success_url: `${origem}/cliente/pedidos/${pedidoSalvo.id}?pago=processando`,
+        cancel_url: `${origem}/cliente/pedidos/${pedidoSalvo.id}?pagamento=cancelado`,
+      });
+
+      if (!sessao.url) throw new Error('sessão sem url de checkout');
+
+      return NextResponse.json({
+        codigo: pedidoSalvo.code,
+        status: 'pending_payment',
+        metodo,
+        checkoutUrl: sessao.url,
+      });
+    } catch (e) {
+      // O pedido fica como 'pending_payment' — não é um beco sem saída: o
+      // cliente vê "Aguardando pagamento" em Meus pedidos e pode cancelar.
+      return NextResponse.json(
+        {
+          erro: 'falha_pagamento',
+          mensagem:
+            metodo === 'pix'
+              ? 'Não foi possível gerar a cobrança via Pix agora. Tente pagar com cartão.'
+              : 'Não foi possível iniciar o pagamento agora. Tente novamente em instantes.',
+          detalhe: (e as Error).message,
+        },
+        { status: 502 },
+      );
+    }
+  }
+
+  // Fluxo simulado (sem Stripe configurada): mantém o comportamento antigo
+  // pra ambiente de teste/local continuar funcionando sem chave nenhuma.
   if (cotacao.frequency !== 'SINGLE') {
     const { weekday, windowStart, startDate } = partesDaData(cotacao.scheduled_at);
     const assistencia =
@@ -150,8 +202,6 @@ export async function POST(req: Request) {
     const proximaData = new Date(`${startDate}T00:00:00Z`);
     proximaData.setUTCDate(proximaData.getUTCDate() + passoDias);
 
-    // A primeira diária já foi criada acima; next_run_date aponta pra
-    // segunda ocorrência, que o job de assinaturas gera mais pra frente.
     const { data: assinatura } = await cliente
       .from('subscriptions')
       .insert({
@@ -175,13 +225,12 @@ export async function POST(req: Request) {
     }
   }
 
-  // Avisa na hora todo profissional que atende esse serviço na região —
-  // mercado pequeno, oferta aberta pra quem quiser pegar primeiro.
   await cliente.rpc('fn_gerar_ofertas', { p_order_id: pedidoSalvo.id });
 
   return NextResponse.json({
     codigo: pedidoSalvo.code,
     status: 'searching_professional',
     metodo,
+    simulado: true,
   });
 }
