@@ -19,7 +19,7 @@ export function AlternarTema() {
   return (
     <button
       onClick={alternar}
-      className="grid h-8 w-8 place-items-center rounded-full text-tinta-50 transition hover:bg-tinta-5 hover:text-tinta"
+      className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-tinta-50 transition hover:bg-tinta-5 hover:text-tinta"
       aria-label={tema === 'claro' ? 'Ativar modo escuro' : 'Ativar modo claro'}
       title={tema === 'claro' ? 'Modo escuro' : 'Modo claro'}
     >
