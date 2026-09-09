@@ -43,9 +43,13 @@ interface PerfilCliente {
 interface EnderecoSalvo {
   id: string;
   label: string | null;
+  zipcode: string;
   street: string;
   number: string;
   complement: string | null;
+  district: string | null;
+  city: string;
+  state: string;
 }
 
 export function Funil({
@@ -91,6 +95,7 @@ export function Funil({
   const [complemento, setComplemento] = useState('');
   const [acesso, setAcesso] = useState('');
   const [enderecosSalvos, setEnderecosSalvos] = useState<EnderecoSalvo[]>([]);
+  const [enderecoSalvoId, setEnderecoSalvoId] = useState<string | null>(null);
   const [metodo, setMetodo] = useState<'pix' | 'credit_card'>('pix');
   const [pedido, setPedido] = useState<{ codigo: string; simulado?: boolean } | null>(null);
   const [erroFinal, setErroFinal] = useState<string | null>(null);
@@ -185,13 +190,28 @@ export function Funil({
       if (!supabase) return;
       const { data } = await supabase
         .from('addresses')
-        .select('id, label, street, number, complement')
+        .select('id, label, zipcode, street, number, complement, district, city, state')
         .eq('customer_id', perfil.id)
         .eq('active', true)
         .order('created_at', { ascending: false });
       setEnderecosSalvos(data ?? []);
     })();
   }, [perfil.id]);
+
+  // Escolher um endereço salvo tem que trazer tudo que ele tem — bairro,
+  // cidade e UF inclusive — não só rua e número. Sem isso o pedido saía
+  // com o bairro/cidade do CEP digitado lá no passo 1, que podia ser de um
+  // endereço salvo diferente do que a pessoa escolheu aqui.
+  function selecionarEnderecoSalvo(e: EnderecoSalvo) {
+    setEnderecoSalvoId(e.id);
+    setRua(e.street);
+    setNumero(e.number);
+    setComplemento(e.complement ?? '');
+    setCep(e.zipcode);
+    setBairro(e.district);
+    setCidade(e.city);
+    setUf(e.state);
+  }
 
   const avancarPara = (p: Passo, ref?: React.RefObject<HTMLDivElement | null>) => {
     setPasso(p);
@@ -676,14 +696,16 @@ export function Funil({
                     <button
                       key={e.id}
                       type="button"
-                      onClick={() => {
-                        setRua(e.street);
-                        setNumero(e.number);
-                        setComplemento(e.complement ?? '');
-                      }}
-                      className="shrink-0 rounded-xl border-2 border-tinta-20 px-4 py-2 text-left text-xs font-semibold hover:border-tinta-50"
+                      onClick={() => selecionarEnderecoSalvo(e)}
+                      className={`shrink-0 rounded-xl border-2 px-4 py-2 text-left text-xs font-semibold transition ${
+                        enderecoSalvoId === e.id ? 'border-azul-600 bg-azul-50' : 'border-tinta-20 hover:border-tinta-50'
+                      }`}
                     >
-                      {e.label ?? `${e.street}, ${e.number}`}
+                      <span className="block">{e.label ?? `${e.street}, ${e.number}`}</span>
+                      <span className="block font-normal text-tinta-50">
+                        {e.district ? `${e.district} · ` : ''}
+                        {e.city}/{e.state}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -693,6 +715,15 @@ export function Funil({
                 <input className="campo" placeholder="Número" value={numero} onChange={(e) => setNumero(e.target.value)} aria-label="Número" />
               </div>
               <input className="campo" placeholder="Complemento (bloco, apto)" value={complemento} onChange={(e) => setComplemento(e.target.value)} aria-label="Complemento" />
+              {(bairro || cidade) && (
+                <p className="text-xs text-tinta-50">
+                  Bairro: <b className="text-tinta-70">{bairro ?? '—'}</b> · Cidade:{' '}
+                  <b className="text-tinta-70">
+                    {cidade}/{uf}
+                  </b>{' '}
+                  · CEP <b className="text-tinta-70 numero">{cep}</b>
+                </p>
+              )}
               <textarea
                 className="campo min-h-[90px]"
                 placeholder="Como o profissional entra? Portaria, chave com o vizinho, cachorro em casa…"

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
-import { reais } from '@/lib/catalogo';
+import { reais, porCodigo } from '@/lib/catalogo';
 import { rotuloStatusPedido } from '@/lib/statusPedido';
 
 interface Metricas {
@@ -142,7 +142,7 @@ export default function AdminVisaoGeral() {
                   {recentes.map((p) => (
                     <tr key={p.id} className="border-b border-tinta-10 last:border-0">
                       <td className="py-3 pr-4 font-bold numero">{p.code}</td>
-                      <td className="py-3 pr-4">{p.service}</td>
+                      <td className="py-3 pr-4">{porCodigo(p.service as never)?.nome ?? p.service}</td>
                       <td className="py-3 pr-4">
                         <span className="rounded-full bg-tinta-5 px-2.5 py-1 text-xs font-bold text-tinta-70">
                           {rotuloStatusPedido(p.status)}

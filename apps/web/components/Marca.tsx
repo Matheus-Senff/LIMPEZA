@@ -1,8 +1,8 @@
 import Link from 'next/link';
 
 export function Logo({ compacto = false, invertido = false }: { compacto?: boolean; invertido?: boolean }) {
-  return (
-    <Link href="/" className="inline-flex items-center gap-2.5" aria-label="Plano Limpo, página inicial">
+  const conteudo = (
+    <>
       <span className="grid h-9 w-9 place-items-center rounded-xl bg-tinta-solida">
         <MarcaVan className="h-[22px] w-[22px]" />
       </span>
@@ -11,6 +11,20 @@ export function Logo({ compacto = false, invertido = false }: { compacto?: boole
           Plano<span className="texto-degrade">Limpo</span>
         </span>
       )}
+    </>
+  );
+
+  // Dentro do app (cabeçalho logado) a logo é só identidade visual — não
+  // deve navegar pra lugar nenhum. Um clique ali batendo em "/" e voltando
+  // sozinho (o login redireciona quem já tem sessão) não tem função
+  // nenhuma, só confunde e é uma navegação a mais que não precisa existir.
+  if (compacto) {
+    return <span className="inline-flex items-center gap-2.5" aria-label="Plano Limpo">{conteudo}</span>;
+  }
+
+  return (
+    <Link href="/" className="inline-flex items-center gap-2.5" aria-label="Plano Limpo, página inicial">
+      {conteudo}
     </Link>
   );
 }
