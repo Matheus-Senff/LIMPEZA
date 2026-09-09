@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { usePerfil } from '@/lib/usePerfil';
 import { supabase } from '@/lib/supabase';
-import { horas, reais, porCodigo, OPCIONAIS } from '@/lib/catalogo';
+import { horas, reais } from '@/lib/catalogo';
+import { useCatalogo } from '@/lib/useCatalogo';
 import { dataHoraPorExtenso } from '@/lib/agenda';
 import { ChatPedido } from '@/components/ChatPedido';
 import { Modal } from '@/components/Modal';
@@ -64,6 +65,8 @@ const TIPOS: { code: Endereco['home_type']; nome: string }[] = [
 export default function PedidoCliente({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const perfil = usePerfil();
+  const { servicos: catalogoServicos, opcionais: OPCIONAIS } = useCatalogo();
+  const porCodigo = (code: string) => catalogoServicos.find((s) => s.code === code);
   const searchParams = useSearchParams();
   const pago = searchParams.get('pago');
   const pagamentoCancelado = searchParams.get('pagamento') === 'cancelado';

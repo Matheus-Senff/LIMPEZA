@@ -3,7 +3,7 @@ import { clienteComToken, supabase, tokenDaRequisicao } from '@/lib/supabase';
 import { RULESET_PADRAO } from '@/lib/rulesetPadrao';
 import { quote } from '@/lib/pricing';
 import type { Frequency, Ruleset, ServiceCode } from '@/lib/pricing/types';
-import { OPCIONAIS } from '@/lib/catalogo';
+import { buscarOpcionais } from '@/lib/catalogoDb';
 
 export const runtime = 'nodejs';
 
@@ -36,7 +36,8 @@ export async function POST(req: Request) {
   const service = String(body.service ?? 'CLEANING') as ServiceCode;
   const frequency = String(body.frequency ?? 'SINGLE') as Frequency;
   const codigosAddons: string[] = Array.isArray(body.addons) ? body.addons : [];
-  const addons = OPCIONAIS.filter((o) => codigosAddons.includes(o.code)).map((o) => ({
+  const opcionais = await buscarOpcionais(true);
+  const addons = opcionais.filter((o) => codigosAddons.includes(o.code)).map((o) => ({
     code: o.code,
     name: o.nome,
     extraMinutes: o.minutos,

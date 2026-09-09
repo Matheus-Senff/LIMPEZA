@@ -26,6 +26,431 @@ interface RegraAtiva {
   rules: Ruleset;
 }
 
+const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+function EditorRegras({
+  regra,
+  onSalvo,
+}: {
+  regra: RegraAtiva;
+  onSalvo: (rules: Ruleset) => void;
+}) {
+  const [r, setR] = useState<Ruleset>(() => structuredClone(regra.rules));
+  const [salvando, setSalvando] = useState(false);
+  const [aviso, setAviso] = useState('');
+
+  useEffect(() => {
+    setR(structuredClone(regra.rules));
+    setAviso('');
+  }, [regra.id]);
+
+  function num(v: string, atual: number) {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : atual;
+  }
+
+  async function salvar() {
+    if (!supabase) return;
+    setSalvando(true);
+    setAviso('');
+    const { error } = await supabase.from('pricing_rulesets').update({ rules: r }).eq('id', regra.id);
+    setSalvando(false);
+    if (error) {
+      setAviso('Erro ao salvar: ' + error.message);
+      return;
+    }
+    setAviso('Salvo.');
+    onSalvo(r);
+  }
+
+  return (
+    <div className="space-y-6">
+      <section>
+        <h3 className="mb-2 text-sm font-bold">Preço-base por duração</h3>
+        <div className="space-y-2">
+          {r.hourAnchors.map((a, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <input
+                type="number"
+                className="campo w-28"
+                value={a.minutes}
+                onChange={(e) =>
+                  setR({
+                    ...r,
+                    hourAnchors: r.hourAnchors.map((x, j) => (j === i ? { ...x, minutes: num(e.target.value, x.minutes) } : x)),
+                  })
+                }
+              />
+              <span className="text-xs text-tinta-50">min →</span>
+              <input
+                type="number"
+                className="campo w-32"
+                value={a.cents / 100}
+                step="0.01"
+                onChange={(e) =>
+                  setR({
+                    ...r,
+                    hourAnchors: r.hourAnchors.map((x, j) =>
+                      j === i ? { ...x, cents: Math.round(num(e.target.value, x.cents / 100) * 100) } : x,
+                    ),
+                  })
+                }
+              />
+              <span className="text-xs text-tinta-50">R$</span>
+              <button
+                onClick={() => setR({ ...r, hourAnchors: r.hourAnchors.filter((_, j) => j !== i) })}
+                className="text-xs font-bold text-tinta-50 underline"
+              >
+                remover
+              </button>
+            </div>
+          ))}
+          <button
+            onClick={() => setR({ ...r, hourAnchors: [...r.hourAnchors, { minutes: 240, cents: 15000 }] })}
+            className="text-xs font-bold text-azul-600"
+          >
+            + adicionar ponto
+          </button>
+        </div>
+      </section>
+
+      <section>
+        <h3 className="mb-2 text-sm font-bold">Multiplicador por frequência</h3>
+        <div className="grid grid-cols-4 gap-3">
+          {(['SINGLE', 'WEEKLY', 'BIWEEKLY', 'MONTHLY'] as const).map((f) => (
+            <label key={f} className="flex flex-col gap-1">
+              <span className="rotulo">{f}</span>
+              <input
+                type="number"
+                step="0.001"
+                className="campo"
+                value={r.frequencyMultipliers[f]}
+                onChange={(e) =>
+                  setR({ ...r, frequencyMultipliers: { ...r.frequencyMultipliers, [f]: num(e.target.value, r.frequencyMultipliers[f]) } })
+                }
+              />
+            </label>
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <h3 className="mb-2 text-sm font-bold">Multiplicador por antecedência</h3>
+        <div className="space-y-2">
+          {r.leadTimeMultipliers.map((l, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <input
+                type="text"
+                className="campo w-40"
+                value={l.label}
+                onChange={(e) =>
+                  setR({
+                    ...r,
+                    leadTimeMultipliers: r.leadTimeMultipliers.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)),
+                  })
+                }
+              />
+              <input
+                type="number"
+                className="campo w-24"
+                placeholder="máx dias"
+                value={l.maxDays ?? ''}
+                onChange={(e) =>
+                  setR({
+                    ...r,
+                    leadTimeMultipliers: r.leadTimeMultipliers.map((x, j) =>
+                      j === i ? { ...x, maxDays: e.target.value === '' ? null : num(e.target.value, 0) } : x,
+                    ),
+                  })
+                }
+              />
+              <span className="text-xs text-tinta-50">×</span>
+              <input
+                type="number"
+                step="0.001"
+                className="campo w-24"
+                value={l.factor}
+                onChange={(e) =>
+                  setR({
+                    ...r,
+                    leadTimeMultipliers: r.leadTimeMultipliers.map((x, j) => (j === i ? { ...x, factor: num(e.target.value, x.factor) } : x)),
+                  })
+                }
+              />
+              <button
+                onClick={() => setR({ ...r, leadTimeMultipliers: r.leadTimeMultipliers.filter((_, j) => j !== i) })}
+                className="text-xs font-bold text-tinta-50 underline"
+              >
+                remover
+              </button>
+            </div>
+          ))}
+          <button
+            onClick={() =>
+              setR({ ...r, leadTimeMultipliers: [...r.leadTimeMultipliers, { maxDays: null, factor: 1, label: 'Nova faixa' }] })
+            }
+            className="text-xs font-bold text-azul-600"
+          >
+            + adicionar faixa
+          </button>
+        </div>
+      </section>
+
+      <section>
+        <h3 className="mb-2 text-sm font-bold">Multiplicador por horário</h3>
+        <div className="space-y-2">
+          {r.windowMultipliers.map((w, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <input
+                type="text"
+                className="campo w-32"
+                value={w.label}
+                onChange={(e) =>
+                  setR({ ...r, windowMultipliers: r.windowMultipliers.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) })
+                }
+              />
+              <input
+                type="time"
+                className="campo w-28"
+                value={w.from}
+                onChange={(e) =>
+                  setR({ ...r, windowMultipliers: r.windowMultipliers.map((x, j) => (j === i ? { ...x, from: e.target.value } : x)) })
+                }
+              />
+              <span className="text-xs text-tinta-50">até</span>
+              <input
+                type="time"
+                className="campo w-28"
+                value={w.to}
+                onChange={(e) =>
+                  setR({ ...r, windowMultipliers: r.windowMultipliers.map((x, j) => (j === i ? { ...x, to: e.target.value } : x)) })
+                }
+              />
+              <span className="text-xs text-tinta-50">×</span>
+              <input
+                type="number"
+                step="0.001"
+                className="campo w-24"
+                value={w.factor}
+                onChange={(e) =>
+                  setR({ ...r, windowMultipliers: r.windowMultipliers.map((x, j) => (j === i ? { ...x, factor: num(e.target.value, x.factor) } : x)) })
+                }
+              />
+              <button
+                onClick={() => setR({ ...r, windowMultipliers: r.windowMultipliers.filter((_, j) => j !== i) })}
+                className="text-xs font-bold text-tinta-50 underline"
+              >
+                remover
+              </button>
+            </div>
+          ))}
+          <button
+            onClick={() =>
+              setR({ ...r, windowMultipliers: [...r.windowMultipliers, { from: '07:00', to: '21:00', factor: 1, label: 'Nova janela' }] })
+            }
+            className="text-xs font-bold text-azul-600"
+          >
+            + adicionar janela
+          </button>
+        </div>
+      </section>
+
+      <section>
+        <h3 className="mb-2 text-sm font-bold">Multiplicador por dia da semana</h3>
+        <div className="grid grid-cols-7 gap-2">
+          {DIAS_SEMANA.map((nome, i) => (
+            <label key={i} className="flex flex-col gap-1">
+              <span className="rotulo">{nome}</span>
+              <input
+                type="number"
+                step="0.001"
+                className="campo"
+                value={r.weekdayMultipliers[String(i)]}
+                onChange={(e) =>
+                  setR({ ...r, weekdayMultipliers: { ...r.weekdayMultipliers, [String(i)]: num(e.target.value, r.weekdayMultipliers[String(i)]) } })
+                }
+              />
+            </label>
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <h3 className="mb-2 text-sm font-bold">Repasse ao profissional</h3>
+        <div className="grid grid-cols-3 gap-3">
+          <label className="flex flex-col gap-1">
+            <span className="rotulo">Por hora (R$)</span>
+            <input
+              type="number"
+              step="0.01"
+              className="campo"
+              value={r.payout.hourCents / 100}
+              onChange={(e) => setR({ ...r, payout: { ...r.payout, hourCents: Math.round(num(e.target.value, r.payout.hourCents / 100) * 100) } })}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="rotulo">Mínimo (R$)</span>
+            <input
+              type="number"
+              step="0.01"
+              className="campo"
+              value={r.payout.minCents / 100}
+              onChange={(e) => setR({ ...r, payout: { ...r.payout, minCents: Math.round(num(e.target.value, r.payout.minCents / 100) * 100) } })}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="rotulo">Multiplicador</span>
+            <input
+              type="number"
+              step="0.001"
+              className="campo"
+              value={r.payout.multiplier}
+              onChange={(e) => setR({ ...r, payout: { ...r.payout, multiplier: num(e.target.value, r.payout.multiplier) } })}
+            />
+          </label>
+        </div>
+      </section>
+
+      <section>
+        <h3 className="mb-2 text-sm font-bold">Bônus de fidelidade (R$)</h3>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="flex flex-col gap-1">
+            <span className="rotulo">Profissional preferencial</span>
+            <input
+              type="number"
+              step="0.01"
+              className="campo"
+              value={r.loyaltyBonusCents.preferred / 100}
+              onChange={(e) =>
+                setR({ ...r, loyaltyBonusCents: { ...r.loyaltyBonusCents, preferred: Math.round(num(e.target.value, r.loyaltyBonusCents.preferred / 100) * 100) } })
+              }
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="rotulo">Assinatura recorrente</span>
+            <input
+              type="number"
+              step="0.01"
+              className="campo"
+              value={r.loyaltyBonusCents.recurring / 100}
+              onChange={(e) =>
+                setR({ ...r, loyaltyBonusCents: { ...r.loyaltyBonusCents, recurring: Math.round(num(e.target.value, r.loyaltyBonusCents.recurring / 100) * 100) } })
+              }
+            />
+          </label>
+        </div>
+      </section>
+
+      <section>
+        <h3 className="mb-2 text-sm font-bold">Outros</h3>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <label className="flex flex-col gap-1">
+            <span className="rotulo">Taxa de conexão (R$)</span>
+            <input
+              type="number"
+              step="0.01"
+              className="campo"
+              value={r.connectFeeCents / 100}
+              onChange={(e) => setR({ ...r, connectFeeCents: Math.round(num(e.target.value, r.connectFeeCents / 100) * 100) })}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="rotulo">Ajuste por quarto extra</span>
+            <input
+              type="number"
+              step="0.001"
+              className="campo"
+              value={r.roomAdjustment.bedroomOverBaseline}
+              onChange={(e) => setR({ ...r, roomAdjustment: { ...r.roomAdjustment, bedroomOverBaseline: num(e.target.value, r.roomAdjustment.bedroomOverBaseline) } })}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="rotulo">Arredondar para (centavos)</span>
+            <input
+              type="number"
+              className="campo"
+              value={r.rounding.toCents}
+              onChange={(e) => setR({ ...r, rounding: { ...r.rounding, toCents: num(e.target.value, r.rounding.toCents) } })}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="rotulo">Duração mínima (min)</span>
+            <input
+              type="number"
+              className="campo"
+              value={r.limits.minMinutes}
+              onChange={(e) => setR({ ...r, limits: { ...r.limits, minMinutes: num(e.target.value, r.limits.minMinutes) } })}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="rotulo">Duração máxima (min)</span>
+            <input
+              type="number"
+              className="campo"
+              value={r.limits.maxMinutes}
+              onChange={(e) => setR({ ...r, limits: { ...r.limits, maxMinutes: num(e.target.value, r.limits.maxMinutes) } })}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="rotulo">Antecedência mínima (min)</span>
+            <input
+              type="number"
+              className="campo"
+              value={r.limits.minLeadMinutes}
+              onChange={(e) => setR({ ...r, limits: { ...r.limits, minLeadMinutes: num(e.target.value, r.limits.minLeadMinutes) } })}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="rotulo">Atende a partir de</span>
+            <input
+              type="time"
+              className="campo"
+              value={r.servicesFrom}
+              onChange={(e) => setR({ ...r, servicesFrom: e.target.value })}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="rotulo">Atende até</span>
+            <input
+              type="time"
+              className="campo"
+              value={r.servicesUntil}
+              onChange={(e) => setR({ ...r, servicesUntil: e.target.value })}
+            />
+          </label>
+        </div>
+        <label className="mt-3 flex items-center gap-4">
+          <span className="rotulo">Formas de pagamento aceitas</span>
+          {(['pix', 'credit_card'] as const).map((t) => (
+            <label key={t} className="flex items-center gap-1.5 text-sm">
+              <input
+                type="checkbox"
+                checked={r.allowedPaymentTypes.includes(t)}
+                onChange={(e) =>
+                  setR({
+                    ...r,
+                    allowedPaymentTypes: e.target.checked
+                      ? [...r.allowedPaymentTypes, t]
+                      : r.allowedPaymentTypes.filter((x) => x !== t),
+                  })
+                }
+              />
+              {t === 'pix' ? 'Pix' : 'Cartão de crédito'}
+            </label>
+          ))}
+        </label>
+      </section>
+
+      <div className="flex items-center gap-3">
+        <button onClick={salvar} disabled={salvando} className="btn-primario w-fit">
+          {salvando ? 'Salvando…' : 'Salvar alterações'}
+        </button>
+        {aviso ? <span className="text-sm text-tinta-50">{aviso}</span> : null}
+      </div>
+    </div>
+  );
+}
+
 export default function AdminPrecos() {
   const [coberturas, setCoberturas] = useState<Cobertura[]>([]);
   const [regras, setRegras] = useState<RegraAtiva[]>([]);
@@ -85,6 +510,8 @@ export default function AdminPrecos() {
   }, [dias, quandoIdx, servico, minutos, frequencia, rulesetSimulado]);
 
   const regioes = Array.from(new Set([...regras.map((r) => r.region_code), 'PR-SUL']));
+
+  const regraSelecionada = regras.find((r) => r.region_code === regiao && r.service === servico);
 
   return (
     <main className="bg-tinta-5 pb-16">
@@ -201,6 +628,24 @@ export default function AdminPrecos() {
               </tbody>
             </table>
           </div>
+        </section>
+
+        <section className="cartao mb-6 p-6">
+          <h2 className="text-lg font-bold">Editar preços</h2>
+          <p className="mb-5 text-sm text-tinta-50">
+            Use a região e o serviço escolhidos no simulador acima. Alterações valem para pedidos novos a partir do salvamento.
+          </p>
+          {!regraSelecionada ? (
+            <p className="text-sm text-tinta-50">Nenhuma regra cadastrada para {servico} em {regiao}.</p>
+          ) : (
+            <EditorRegras
+              key={regraSelecionada.id}
+              regra={regraSelecionada}
+              onSalvo={(rules) =>
+                setRegras((antigas) => antigas.map((r) => (r.id === regraSelecionada.id ? { ...r, rules } : r)))
+              }
+            />
+          )}
         </section>
 
         <section className="cartao p-6">

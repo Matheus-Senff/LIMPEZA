@@ -3,7 +3,7 @@ import { clienteComToken, tokenDaRequisicao } from '@/lib/supabase';
 import { RULESET_PADRAO } from '@/lib/rulesetPadrao';
 import { quote } from '@/lib/pricing';
 import type { HomeType, Ruleset } from '@/lib/pricing/types';
-import { OPCIONAIS, SERVICOS } from '@/lib/catalogo';
+import { buscarOpcionais, buscarPorCodigo } from '@/lib/catalogoDb';
 
 export const runtime = 'nodejs';
 
@@ -48,18 +48,19 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     .maybeSingle();
   if (!endereco) return NextResponse.json({ erro: 'endereco_nao_encontrado' }, { status: 404 });
 
-  const servico = SERVICOS.find((s) => s.code === pedido.service);
+  const servico = await buscarPorCodigo(pedido.service);
   if (!servico) return NextResponse.json({ erro: 'servico_invalido' }, { status: 422 });
 
+  const opcionais = await buscarOpcionais(true);
   const codigosAtuais: string[] = pedido.addons ?? [];
   const minutosAtuaisExtra = codigosAtuais.reduce(
-    (s, c) => s + (OPCIONAIS.find((o) => o.code === c)?.minutos ?? 0),
+    (s, c) => s + (opcionais.find((o) => o.code === c)?.minutos ?? 0),
     0,
   );
   const minutosBase = Math.max(servico.minMinutos, pedido.minutes - minutosAtuaisExtra);
 
   const codigosNovos: string[] = Array.isArray(body.addons) ? body.addons : [];
-  const addons = OPCIONAIS.filter((o) => codigosNovos.includes(o.code)).map((o) => ({
+  const addons = opcionais.filter((o) => codigosNovos.includes(o.code)).map((o) => ({
     code: o.code,
     name: o.nome,
     extraMinutes: o.minutos,

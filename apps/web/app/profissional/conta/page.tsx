@@ -3,14 +3,14 @@
 import { useEffect, useState } from 'react';
 import { usePerfil } from '@/lib/usePerfil';
 import { supabase } from '@/lib/supabase';
-import { SERVICOS } from '@/lib/catalogo';
+import { useCatalogo } from '@/lib/useCatalogo';
 import { ContaAcesso } from '@/components/ContaAcesso';
 import { PainelSuporte } from '@/components/PainelSuporte';
 
-const SERVICOS_PROFISSIONAL = SERVICOS.filter((s) => s.code !== 'HOME_ASSISTANCE');
-
 export default function ContaProfissional() {
   const perfil = usePerfil();
+  const { servicos: catalogoServicos } = useCatalogo();
+  const SERVICOS_PROFISSIONAL = catalogoServicos.filter((s) => s.code !== 'HOME_ASSISTANCE');
   const [nome, setNome] = useState(perfil.full_name);
   const [telefone, setTelefone] = useState(perfil.phone ?? '');
   const [documento, setDocumento] = useState('');

@@ -3,7 +3,7 @@ import { clienteServico } from '@/lib/supabase';
 import { RULESET_PADRAO } from '@/lib/rulesetPadrao';
 import { quote } from '@/lib/pricing';
 import type { Ruleset, ServiceCode, Frequency } from '@/lib/pricing/types';
-import { OPCIONAIS } from '@/lib/catalogo';
+import { buscarOpcionais } from '@/lib/catalogoDb';
 
 export const runtime = 'nodejs';
 
@@ -39,6 +39,7 @@ export async function GET(req: Request) {
 
   const { data } = await supabase.rpc('fn_assinaturas_para_gerar', { p_dias_a_frente: 3 });
   const pendentes = (data ?? []) as Pendente[];
+  const opcionais = await buscarOpcionais(true);
 
   let geradas = 0;
   for (const p of pendentes) {
@@ -58,7 +59,7 @@ export async function GET(req: Request) {
       if (rs) ruleset = rs.rules as Ruleset;
     }
 
-    const addons = OPCIONAIS.filter((o) => p.addons.includes(o.code)).map((o) => ({
+    const addons = opcionais.filter((o) => p.addons.includes(o.code)).map((o) => ({
       code: o.code,
       name: o.nome,
       extraMinutes: o.minutos,

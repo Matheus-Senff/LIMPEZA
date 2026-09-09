@@ -3,7 +3,7 @@ import { clienteComToken, tokenDaRequisicao } from '@/lib/supabase';
 import { partesDaData } from '@/lib/data';
 import { bairroDoCep } from '@/lib/viacep';
 import { stripe, stripeConfigurado } from '@/lib/stripe';
-import { porCodigo } from '@/lib/catalogo';
+import { buscarPorCodigo } from '@/lib/catalogoDb';
 
 export const runtime = 'nodejs';
 
@@ -146,7 +146,7 @@ export async function POST(req: Request) {
     // A assinatura (se houver) e o broadcast de ofertas só acontecem depois
     // que o webhook confirmar o pagamento — ver /api/webhooks/stripe.
     const origem = new URL(req.url).origin;
-    const servico = porCodigo(cotacao.service as never);
+    const servico = await buscarPorCodigo(cotacao.service);
     const paramsBase = {
       mode: 'payment' as const,
       customer_email: user.email ?? undefined,

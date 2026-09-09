@@ -26,6 +26,7 @@ const NAV: Record<'customer' | 'professional' | 'admin', { href: string; rotulo:
     { href: '/admin/pedidos', rotulo: 'Pedidos' },
     { href: '/admin/suporte', rotulo: 'Suporte' },
     { href: '/admin/precos', rotulo: 'Preços' },
+    { href: '/admin/servicos', rotulo: 'Editar serviços' },
   ],
 };
 

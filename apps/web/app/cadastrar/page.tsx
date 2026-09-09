@@ -6,16 +6,16 @@ import { useRouter } from 'next/navigation';
 import { Logo } from '@/components/Marca';
 import { supabase, supabaseConfigurado } from '@/lib/supabase';
 import { buscarPapeis, buscarPerfil, ROTA_POR_PAPEL, type PapelUsuario } from '@/lib/perfil';
-import { SERVICOS } from '@/lib/catalogo';
+import { useCatalogo } from '@/lib/useCatalogo';
 import type { User } from '@supabase/supabase-js';
 
 type Papel = Extract<PapelUsuario, 'customer' | 'professional'>;
 type Etapa = 'papel' | 'dados' | 'aguardando' | 'perfil';
 
-const SERVICOS_PROFISSIONAL = SERVICOS.filter((s) => s.code !== 'HOME_ASSISTANCE');
-
 export default function Cadastrar() {
   const router = useRouter();
+  const { servicos: catalogoServicos } = useCatalogo();
+  const SERVICOS_PROFISSIONAL = catalogoServicos.filter((s) => s.code !== 'HOME_ASSISTANCE');
   const [etapa, setEtapa] = useState<Etapa>('papel');
   const [papel, setPapel] = useState<Papel | null>(null);
   const [carregando, setCarregando] = useState(false);

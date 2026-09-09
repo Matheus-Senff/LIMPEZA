@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
-import { reais, porCodigo } from '@/lib/catalogo';
+import { reais } from '@/lib/catalogo';
+import { useCatalogo } from '@/lib/useCatalogo';
 import { rotuloStatusPedido } from '@/lib/statusPedido';
 
 interface Metricas {
@@ -30,6 +31,8 @@ const STATUS_ATIVOS = ['searching_professional', 'assigned', 'in_progress'];
 const STATUS_CANCELADOS = ['cancelled_by_customer', 'cancelled_by_professional', 'no_show', 'refunded'];
 
 export default function AdminVisaoGeral() {
+  const { servicos: catalogoServicos } = useCatalogo();
+  const porCodigo = (code: string) => catalogoServicos.find((s) => s.code === code);
   const [m, setM] = useState<Metricas | null>(null);
   const [recentes, setRecentes] = useState<PedidoRecente[]>([]);
   const [carregando, setCarregando] = useState(true);
