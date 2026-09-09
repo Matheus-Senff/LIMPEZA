@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { usePerfil } from '@/lib/usePerfil';
+import { ChatCredenciamento } from '@/components/ChatCredenciamento';
 
 type Credenciamento = 'pending' | 'in_review' | 'approved' | 'suspended' | 'blocked';
 
@@ -32,11 +34,60 @@ const CORES_STATUS: Record<Credenciamento, string> = {
   blocked: 'bg-tinta-solida text-white',
 };
 
+const BUCKET_DOCUMENTOS = 'documentos-profissionais';
+
+function DocumentosProfissional({ professionalId }: { professionalId: string }) {
+  const [links, setLinks] = useState<{ nome: string; url: string }[]>([]);
+  const [carregando, setCarregando] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      if (!supabase) {
+        setCarregando(false);
+        return;
+      }
+      const cliente = supabase;
+      const { data: arquivos } = await cliente.storage.from(BUCKET_DOCUMENTOS).list(professionalId);
+      const comUrl = await Promise.all(
+        (arquivos ?? []).map(async (f) => {
+          const { data } = await cliente.storage
+            .from(BUCKET_DOCUMENTOS)
+            .createSignedUrl(`${professionalId}/${f.name}`, 600);
+          return { nome: f.name, url: data?.signedUrl ?? '' };
+        }),
+      );
+      setLinks(comUrl.filter((l) => l.url));
+      setCarregando(false);
+    })();
+  }, [professionalId]);
+
+  if (carregando) return <p className="text-xs text-tinta-50">Carregando documentos…</p>;
+  if (links.length === 0) return <p className="text-xs text-tinta-50">Nenhum documento enviado ainda.</p>;
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {links.map((l) => (
+        <a
+          key={l.nome}
+          href={l.url}
+          target="_blank"
+          rel="noreferrer"
+          className="rounded-full bg-tinta-5 px-3 py-1.5 text-xs font-bold text-azul-600 hover:underline"
+        >
+          {l.nome}
+        </a>
+      ))}
+    </div>
+  );
+}
+
 export default function AdminProfissionais() {
+  const perfil = usePerfil();
   const [profissionais, setProfissionais] = useState<ProfissionalAdmin[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [filtro, setFiltro] = useState<'todos' | Credenciamento>('todos');
   const [atualizando, setAtualizando] = useState<string | null>(null);
+  const [expandido, setExpandido] = useState<string | null>(null);
 
   async function carregar() {
     if (!supabase) {
@@ -136,51 +187,80 @@ export default function AdminProfissionais() {
                 </thead>
                 <tbody>
                   {filtrados.map((p) => (
-                    <tr key={p.id} className="border-b border-tinta-10 last:border-0">
-                      <td className="py-3 pr-4">
-                        <p className="font-semibold">{p.full_name}</p>
-                        <p className="text-xs text-tinta-50">{p.email}</p>
-                      </td>
-                      <td className="py-3 pr-4 numero">{p.document}</td>
-                      <td className="py-3 pr-4 numero">
-                        {p.rating_count > 0 ? `${p.rating_avg.toFixed(2)} (${p.rating_count})` : '—'}
-                      </td>
-                      <td className="py-3 pr-4 numero">{p.completed_orders}</td>
-                      <td className="py-3 pr-4">
-                        <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${CORES_STATUS[p.accreditation_status]}`}>
-                          {STATUS_CREDENCIAMENTO[p.accreditation_status]}
-                        </span>
-                      </td>
-                      <td className="flex flex-wrap gap-2 py-3">
-                        {p.accreditation_status !== 'approved' && (
+                    <Fragment key={p.id}>
+                      <tr className="border-b border-tinta-10 last:border-0">
+                        <td className="py-3 pr-4">
+                          <p className="font-semibold">{p.full_name}</p>
+                          <p className="text-xs text-tinta-50">{p.email}</p>
+                        </td>
+                        <td className="py-3 pr-4 numero">{p.document}</td>
+                        <td className="py-3 pr-4 numero">
+                          {p.rating_count > 0 ? `${p.rating_avg.toFixed(2)} (${p.rating_count})` : '—'}
+                        </td>
+                        <td className="py-3 pr-4 numero">{p.completed_orders}</td>
+                        <td className="py-3 pr-4">
+                          <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${CORES_STATUS[p.accreditation_status]}`}>
+                            {STATUS_CREDENCIAMENTO[p.accreditation_status]}
+                          </span>
+                        </td>
+                        <td className="flex flex-wrap gap-2 py-3">
                           <button
-                            onClick={() => definirStatus(p.id, 'approved')}
-                            disabled={atualizando === p.id}
-                            className="btn-verde !px-3 !py-1.5 !text-[11px]"
-                          >
-                            Aprovar
-                          </button>
-                        )}
-                        {p.accreditation_status !== 'suspended' && (
-                          <button
-                            onClick={() => definirStatus(p.id, 'suspended')}
-                            disabled={atualizando === p.id}
+                            onClick={() => setExpandido(expandido === p.id ? null : p.id)}
                             className="btn-contorno !px-3 !py-1.5 !text-[11px]"
                           >
-                            Suspender
+                            {expandido === p.id ? 'Fechar' : 'Ver documentos'}
                           </button>
-                        )}
-                        {p.accreditation_status !== 'blocked' && (
-                          <button
-                            onClick={() => definirStatus(p.id, 'blocked')}
-                            disabled={atualizando === p.id}
-                            className="btn-contorno !px-3 !py-1.5 !text-[11px]"
-                          >
-                            Negar
-                          </button>
-                        )}
-                      </td>
-                    </tr>
+                          {p.accreditation_status !== 'approved' && (
+                            <button
+                              onClick={() => definirStatus(p.id, 'approved')}
+                              disabled={atualizando === p.id}
+                              className="btn-verde !px-3 !py-1.5 !text-[11px]"
+                            >
+                              Aprovar
+                            </button>
+                          )}
+                          {p.accreditation_status !== 'suspended' && (
+                            <button
+                              onClick={() => definirStatus(p.id, 'suspended')}
+                              disabled={atualizando === p.id}
+                              className="btn-contorno !px-3 !py-1.5 !text-[11px]"
+                            >
+                              Suspender
+                            </button>
+                          )}
+                          {p.accreditation_status !== 'blocked' && (
+                            <button
+                              onClick={() => definirStatus(p.id, 'blocked')}
+                              disabled={atualizando === p.id}
+                              className="btn-contorno !px-3 !py-1.5 !text-[11px]"
+                            >
+                              Negar
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                      {expandido === p.id && (
+                        <tr className="border-b border-tinta-10 last:border-0">
+                          <td colSpan={6} className="bg-tinta-5 px-4 py-4">
+                            <div className="grid gap-6 lg:grid-cols-2">
+                              <div>
+                                <h3 className="mb-2 text-sm font-bold">Documentos enviados</h3>
+                                <DocumentosProfissional professionalId={p.id} />
+                              </div>
+                              <div>
+                                <h3 className="mb-2 text-sm font-bold">Conversa com {p.full_name}</h3>
+                                <ChatCredenciamento
+                                  professionalId={p.id}
+                                  meuId={perfil.id}
+                                  meuNome={perfil.full_name}
+                                  outroNome={p.full_name}
+                                />
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   ))}
                 </tbody>
               </table>

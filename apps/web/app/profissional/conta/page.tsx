@@ -6,6 +6,8 @@ import { supabase } from '@/lib/supabase';
 import { useCatalogo } from '@/lib/useCatalogo';
 import { ContaAcesso } from '@/components/ContaAcesso';
 import { PainelSuporte } from '@/components/PainelSuporte';
+import { DocumentosCredenciamento } from '@/components/DocumentosCredenciamento';
+import { ChatCredenciamento } from '@/components/ChatCredenciamento';
 
 export default function ContaProfissional() {
   const perfil = usePerfil();
@@ -15,6 +17,7 @@ export default function ContaProfissional() {
   const [telefone, setTelefone] = useState(perfil.phone ?? '');
   const [documento, setDocumento] = useState('');
   const [servicos, setServicos] = useState<string[]>([]);
+  const [statusCredenciamento, setStatusCredenciamento] = useState<string>('pending');
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -25,9 +28,14 @@ export default function ContaProfissional() {
         setCarregando(false);
         return;
       }
-      const { data } = await supabase.from('professionals').select('document, skills').eq('id', perfil.id).maybeSingle();
+      const { data } = await supabase
+        .from('professionals')
+        .select('document, skills, accreditation_status')
+        .eq('id', perfil.id)
+        .maybeSingle();
       setDocumento(data?.document ?? '');
       setServicos(data?.skills ?? []);
+      setStatusCredenciamento(data?.accreditation_status ?? 'pending');
       setCarregando(false);
     })();
   }, [perfil.id]);
@@ -84,6 +92,25 @@ export default function ContaProfissional() {
             {salvando ? 'Salvando…' : 'Salvar'}
           </button>
         </form>
+      </section>
+
+      <DocumentosCredenciamento
+        professionalId={perfil.id}
+        status={statusCredenciamento}
+        onEnviado={() => setStatusCredenciamento('in_review')}
+      />
+
+      <section className="cartao p-6">
+        <h2 className="mb-1 text-lg font-bold">Fale com a administração</h2>
+        <p className="mb-4 text-sm text-tinta-50">
+          Use esse chat para combinar o treinamento de limpeza e tirar dúvidas sobre o credenciamento.
+        </p>
+        <ChatCredenciamento
+          professionalId={perfil.id}
+          meuId={perfil.id}
+          meuNome={perfil.full_name}
+          outroNome="Administração"
+        />
       </section>
 
       <ContaAcesso email={perfil.email} />
