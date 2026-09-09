@@ -41,6 +41,7 @@ export function Chat({
   outroNome: string;
 }) {
   const [threadId, setThreadId] = useState<string | null>(null);
+  const [encerradaEm, setEncerradaEm] = useState<string | null>(null);
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
   const [texto, setTexto] = useState('');
   const [carregando, setCarregando] = useState(true);
@@ -56,7 +57,7 @@ export function Chat({
     (async () => {
       const { data: thread } = await supabase
         .from('chat_threads')
-        .select('id')
+        .select('id, closed_at')
         .eq('order_id', orderId)
         .maybeSingle();
 
@@ -66,6 +67,7 @@ export function Chat({
         return;
       }
       setThreadId(thread.id);
+      setEncerradaEm(thread.closed_at);
 
       const { data: msgs } = await supabase
         .from('chat_messages')
@@ -113,6 +115,8 @@ export function Chat({
   if (carregando) return <p className="text-sm text-tinta-50">Carregando conversa…</p>;
   if (!threadId) return null;
 
+  const encerrada = !!encerradaEm && new Date(encerradaEm).getTime() <= Date.now();
+
   let diaAnterior: string | null = null;
 
   return (
@@ -147,18 +151,24 @@ export function Chat({
         })}
         <div ref={fimDaLista} />
       </div>
-      <form onSubmit={enviar} className="flex gap-2">
-        <input
-          className="campo"
-          placeholder="Escreva uma mensagem"
-          value={texto}
-          onChange={(e) => setTexto(e.target.value)}
-          aria-label="Mensagem"
-        />
-        <button className="btn-primario !px-5" disabled={!texto.trim()}>
-          Enviar
-        </button>
-      </form>
+      {encerrada ? (
+        <p className="text-sm text-tinta-50">
+          Conversa encerrada — o pedido acabou há mais de 48h.
+        </p>
+      ) : (
+        <form onSubmit={enviar} className="flex gap-2">
+          <input
+            className="campo"
+            placeholder="Escreva uma mensagem"
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+            aria-label="Mensagem"
+          />
+          <button className="btn-primario !px-5" disabled={!texto.trim()}>
+            Enviar
+          </button>
+        </form>
+      )}
     </div>
   );
 }
