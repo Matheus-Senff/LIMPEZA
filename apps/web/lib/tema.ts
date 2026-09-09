@@ -4,11 +4,15 @@ export type Tema = 'claro' | 'escuro';
 
 export function lerTemaAtual(): Tema {
   if (typeof document === 'undefined') return 'claro';
-  return document.documentElement.classList.contains('dark') ? 'escuro' : 'claro';
+  return document.documentElement.getAttribute('data-tema') === 'escuro' ? 'escuro' : 'claro';
 }
 
 export function aplicarTema(tema: Tema) {
-  document.documentElement.classList.toggle('dark', tema === 'escuro');
+  if (tema === 'escuro') {
+    document.documentElement.setAttribute('data-tema', 'escuro');
+  } else {
+    document.documentElement.removeAttribute('data-tema');
+  }
   try {
     localStorage.setItem(CHAVE, tema);
   } catch {
@@ -25,7 +29,7 @@ export const scriptSemFlash = `
   try {
     var salvo = localStorage.getItem('${CHAVE}');
     var escuro = salvo ? salvo === 'escuro' : window.matchMedia('(prefers-color-scheme: dark)').matches;
-    if (escuro) document.documentElement.classList.add('dark');
+    if (escuro) document.documentElement.setAttribute('data-tema', 'escuro');
   } catch (e) {}
 })();
 `;

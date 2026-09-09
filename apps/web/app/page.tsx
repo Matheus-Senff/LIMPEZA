@@ -3,8 +3,9 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Logo } from '@/components/Marca';
 import { HeroLimpeza } from '@/components/HeroLimpeza';
+import { FundoAnimado } from '@/components/FundoAnimado';
+import { AlternarTema } from '@/components/AlternarTema';
 import { supabase, supabaseConfigurado } from '@/lib/supabase';
 import { buscarPapeis, buscarPerfil, type Perfil } from '@/lib/perfil';
 
@@ -83,10 +84,16 @@ export default function Entrar() {
   if (verificando) return null;
 
   return (
-    <main className="grid min-h-screen place-items-center bg-tinta-5 px-5">
-      <div className="w-full max-w-sm">
-        <div className="mb-6 flex justify-center">
-          <Logo />
+    <main className="relative isolate grid min-h-screen place-items-center overflow-hidden px-5 py-10">
+      <FundoAnimado />
+      <div className="fixed right-5 top-5">
+        <AlternarTema />
+      </div>
+      <div className="w-full max-w-md">
+        <div className="mb-2 flex justify-center">
+          <span className="text-[34px] font-extrabold tracking-tight text-tinta">
+            Plano<span className="texto-degrade">Limpo</span>
+          </span>
         </div>
         <div className="mb-6 flex justify-center">
           <HeroLimpeza />
@@ -95,7 +102,6 @@ export default function Entrar() {
         {escolhendo ? (
           <div className="cartao p-7">
             <h1 className="text-xl font-bold tracking-tight">Como quer entrar?</h1>
-            <p className="mt-1 text-sm text-tinta-50">Sua conta tem acesso como cliente e como profissional.</p>
             <div className="mt-6 flex flex-col gap-3">
               <button onClick={() => router.replace('/cliente')} className="cartao p-5 text-left transition hover:border-tinta-20">
                 <p className="font-bold">Entrar como cliente</p>

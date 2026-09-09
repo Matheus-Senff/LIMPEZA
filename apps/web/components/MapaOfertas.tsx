@@ -122,7 +122,10 @@ export function MapaOfertas({
   }, [ofertas, onSelecionar]);
 
   return (
-    <div className="overflow-hidden rounded-card border border-tinta-10">
+    // relative + z-0 isolam o mapa num contexto de empilhamento próprio:
+    // os controles internos do Leaflet (zoom, atribuição) usam z-index
+    // até 1000 e, sem isso, vazam por cima de modais da página.
+    <div className="relative z-0 overflow-hidden rounded-card border border-tinta-10">
       <div ref={divRef} style={{ height: 360, width: '100%' }} />
       <p className="bg-tinta-5 px-4 py-2 text-xs text-tinta-50">
         O pino mostra a região da cidade, não o endereço exato — isso só aparece depois de aceitar.

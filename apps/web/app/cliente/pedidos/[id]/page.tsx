@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePerfil } from '@/lib/usePerfil';
 import { supabase } from '@/lib/supabase';
 import { horas, reais, porCodigo, OPCIONAIS } from '@/lib/catalogo';
+import { dataHoraPorExtenso } from '@/lib/agenda';
 import { ChatPedido } from '@/components/ChatPedido';
 import { Modal } from '@/components/Modal';
 import { Contador } from '@/components/Contador';
@@ -224,28 +225,23 @@ export default function PedidoCliente({ params }: { params: Promise<{ id: string
         <p className="text-sm text-tinta-50 numero">#{pedido.code}</p>
       </div>
 
-      <button onClick={abrirDetalhes} className="cartao flex flex-col gap-4 p-6 text-left transition hover:border-tinta-20">
+      <button onClick={abrirDetalhes} className="cartao flex flex-col gap-5 p-6 text-left transition hover:border-tinta-20">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <span className="rounded-full bg-tinta-5 px-3 py-1 text-xs font-bold text-tinta-70">
             {rotuloStatusPedido(pedido.status)}
           </span>
-          <span className="font-bold text-verde-700 numero">{reais(pedido.price_cents)}</span>
+          <span className="text-2xl font-extrabold text-verde-700 numero">{reais(pedido.price_cents)}</span>
         </div>
-        <div className="grid gap-3 text-sm sm:grid-cols-2">
+
+        <div>
+          <p className="rotulo">Dia e horário do serviço</p>
+          <p className="text-lg font-extrabold tracking-tight numero">{dataHoraPorExtenso(pedido.scheduled_at)}</p>
+        </div>
+
+        <div className="grid gap-4 border-t border-tinta-10 pt-4 text-sm sm:grid-cols-2">
           <div>
-            <p className="rotulo">Dia, Horário</p>
-            <p className="font-semibold numero">
-              {new Date(pedido.scheduled_at).toLocaleString('pt-BR', {
-                day: '2-digit',
-                month: 'short',
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </p>
-          </div>
-          <div>
-            <p className="rotulo">Duração</p>
-            <p className="font-semibold numero">{horas(pedido.minutes)}</p>
+            <p className="rotulo">Duração do serviço</p>
+            <p className="text-base font-bold numero">{horas(pedido.minutes)}</p>
           </div>
           {endereco && (
             <div>
@@ -272,7 +268,7 @@ export default function PedidoCliente({ params }: { params: Promise<{ id: string
             </div>
           )}
         </div>
-        <span className="text-sm font-semibold text-azul-600">Ver detalhes do que foi escolhido →</span>
+        <span className="text-xs font-bold uppercase tracking-wide text-azul-600">Ver o que foi escolhido</span>
       </button>
 
       {aviso && (
@@ -285,7 +281,14 @@ export default function PedidoCliente({ params }: { params: Promise<{ id: string
         </button>
       )}
 
-      {pedido.professional_id && <ChatPedido orderId={pedido.id} meuId={perfil.id} />}
+      {pedido.professional_id && profissional && (
+        <ChatPedido
+          orderId={pedido.id}
+          meuId={perfil.id}
+          meuNome={perfil.full_name}
+          outroNome={profissional.full_name}
+        />
+      )}
 
       {podeAvaliar && (
         <div className="cartao p-6">

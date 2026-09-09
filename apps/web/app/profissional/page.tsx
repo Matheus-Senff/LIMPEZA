@@ -227,7 +227,6 @@ export default function ProfissionalHome() {
         ) : ofertas.length === 0 ? (
           <div className="cartao p-8 text-center">
             <p className="font-semibold">Nenhuma oferta no momento</p>
-            <p className="mt-1 text-sm text-tinta-50">Pedidos novos na sua região aparecem aqui.</p>
           </div>
         ) : visao === 'mapa' ? (
           <MapaOfertas

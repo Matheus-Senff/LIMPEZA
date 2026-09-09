@@ -69,7 +69,7 @@ export function ContaAcesso({ email }: { email: string }) {
 
   return (
     <section className="cartao p-6">
-      <h2 className="mb-4 text-lg font-bold">Acesso</h2>
+      <h2 className="mb-4 text-lg font-bold">Segurança</h2>
       <div className="flex flex-col gap-4">
         <div>
           <p className="rotulo mb-1">E-mail</p>

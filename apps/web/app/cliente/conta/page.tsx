@@ -203,7 +203,7 @@ export default function ContaCliente() {
             <b className="text-tinta">
               {enderecoParaRemover.label ?? `${enderecoParaRemover.street}, ${enderecoParaRemover.number}`}
             </b>
-            ? Pedidos que já usaram esse endereço não são afetados.
+            ?
           </p>
           <div className="mt-5 flex gap-2">
             <button

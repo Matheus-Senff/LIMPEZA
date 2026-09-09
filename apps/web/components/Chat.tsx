@@ -10,7 +10,36 @@ interface Mensagem {
   created_at: string;
 }
 
-export function Chat({ orderId, meuId }: { orderId: string; meuId: string }) {
+const FUSO = 'America/Sao_Paulo';
+
+function diaISO(iso: string) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: FUSO }).format(new Date(iso));
+}
+
+function rotuloDia(iso: string) {
+  const hoje = diaISO(new Date().toISOString());
+  const ontem = diaISO(new Date(Date.now() - 86400000).toISOString());
+  const dia = diaISO(iso);
+  if (dia === hoje) return 'Hoje';
+  if (dia === ontem) return 'Ontem';
+  return new Intl.DateTimeFormat('pt-BR', { timeZone: FUSO, day: '2-digit', month: 'long' }).format(new Date(iso));
+}
+
+function horaMensagem(iso: string) {
+  return new Intl.DateTimeFormat('pt-BR', { timeZone: FUSO, hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
+}
+
+export function Chat({
+  orderId,
+  meuId,
+  meuNome,
+  outroNome,
+}: {
+  orderId: string;
+  meuId: string;
+  meuNome: string;
+  outroNome: string;
+}) {
   const [threadId, setThreadId] = useState<string | null>(null);
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
   const [texto, setTexto] = useState('');
@@ -84,20 +113,35 @@ export function Chat({ orderId, meuId }: { orderId: string; meuId: string }) {
   if (carregando) return <p className="text-sm text-tinta-50">Carregando conversa…</p>;
   if (!threadId) return null;
 
+  let diaAnterior: string | null = null;
+
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex max-h-80 flex-col gap-2 overflow-y-auto rounded-xl border border-tinta-10 p-3">
+      <div className="flex max-h-96 flex-col gap-1 overflow-y-auto rounded-xl border border-tinta-10 p-3">
         {mensagens.length === 0 && <p className="text-sm text-tinta-50">Nenhuma mensagem ainda.</p>}
         {mensagens.map((m) => {
           const minha = m.sender_id === meuId;
+          const dia = diaISO(m.created_at);
+          const mostrarDivisorDia = dia !== diaAnterior;
+          diaAnterior = dia;
           return (
-            <div
-              key={m.id}
-              className={`max-w-[80%] rounded-xl px-3 py-2 text-sm ${
-                minha ? 'self-end bg-tinta-solida text-white' : 'self-start bg-tinta-5 text-tinta'
-              }`}
-            >
-              {m.body}
+            <div key={m.id} className="flex flex-col">
+              {mostrarDivisorDia && (
+                <p className="my-2 text-center text-[11px] font-bold uppercase tracking-wide text-tinta-30">
+                  {rotuloDia(m.created_at)}
+                </p>
+              )}
+              <div className={`flex max-w-[80%] flex-col gap-0.5 ${minha ? 'self-end items-end' : 'self-start items-start'}`}>
+                <span className="px-1 text-[11px] font-bold text-tinta-50">{minha ? meuNome : outroNome}</span>
+                <div
+                  className={`rounded-xl px-3 py-2 text-sm ${
+                    minha ? 'bg-tinta-solida text-white' : 'bg-tinta-5 text-tinta'
+                  }`}
+                >
+                  {m.body}
+                </div>
+                <span className="px-1 text-[10px] text-tinta-30 numero">{horaMensagem(m.created_at)}</span>
+              </div>
             </div>
           );
         })}
