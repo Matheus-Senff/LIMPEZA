@@ -5,6 +5,7 @@ import { usePerfil } from '@/lib/usePerfil';
 import { supabase } from '@/lib/supabase';
 import { ContaAcesso } from '@/components/ContaAcesso';
 import { Modal } from '@/components/Modal';
+import { PainelSuporte } from '@/components/PainelSuporte';
 import { enderecoDoCep } from '@/lib/viacep';
 
 interface Endereco {
@@ -68,7 +69,7 @@ export default function ContaCliente() {
     if (!supabase) return;
     setSalvandoPerfil(true);
     setAvisoPerfil(null);
-    const { error } = await supabase.from('profiles').update({ full_name: nome, phone: telefone || null }).eq('id', perfil.id);
+    const { error } = await supabase.rpc('fn_atualizar_meu_perfil', { p_full_name: nome, p_phone: telefone || null });
     setSalvandoPerfil(false);
     setAvisoPerfil(error ? 'Não foi possível salvar.' : 'Dados atualizados.');
   }
@@ -335,6 +336,8 @@ export default function ContaCliente() {
           </form>
         )}
       </section>
+
+      <PainelSuporte meuId={perfil.id} />
 
       {enderecoParaRemover && (
         <Modal titulo="Remover endereço" onFechar={() => setEnderecoParaRemover(null)}>

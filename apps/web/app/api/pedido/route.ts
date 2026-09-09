@@ -91,7 +91,9 @@ export async function POST(req: Request) {
     );
   }
 
-  await cliente.from('customers').upsert({ id: user.id }, { onConflict: 'id', ignoreDuplicates: true });
+  // Garantia de segurança: `customers` não aceita mais insert/update direto do
+  // cliente (só assim `credit_cents` fica fora do alcance do próprio usuário).
+  await cliente.rpc('fn_registrar_cliente');
 
   const { data: enderecoSalvo, error: erroEndereco } = await cliente
     .from('addresses')
