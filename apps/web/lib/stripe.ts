@@ -31,12 +31,15 @@ export async function criarSessaoCheckout(params: {
   nomeServico: string;
   customerEmail?: string;
   metodo: string;
+  stripeCustomerId?: string | null;
 }) {
   if (!stripe) throw new Error('Stripe não configurada');
 
   const paramsBase = {
     mode: 'payment' as const,
-    customer_email: params.customerEmail,
+    ...(params.stripeCustomerId
+      ? { customer: params.stripeCustomerId }
+      : { customer_email: params.customerEmail, customer_creation: 'always' as const }),
     line_items: [
       {
         quantity: 1,
@@ -47,7 +50,12 @@ export async function criarSessaoCheckout(params: {
         },
       },
     ],
-    payment_method_options: { card: { capture_method: 'manual' as const } },
+    // Cartão fica salvo (setup_future_usage) pra cobrar sozinho as próximas
+    // diárias de uma assinatura — ver cobrarAssinaturaOffSession abaixo.
+    // Pix não entra aqui: não existe "pix salvo" reutilizável pra recorrência.
+    payment_method_options: {
+      card: { capture_method: 'manual' as const, setup_future_usage: 'off_session' as const },
+    },
     metadata: { order_id: params.orderId, metodo: params.metodo },
     success_url: `${params.origem}/cliente/pedidos/${params.orderId}?pago=processando`,
     cancel_url: `${params.origem}/cliente/pedidos/${params.orderId}?pagamento=cancelado`,
@@ -57,6 +65,43 @@ export async function criarSessaoCheckout(params: {
     return await stripe.checkout.sessions.create({ ...paramsBase, payment_method_types: ['card', 'pix'] });
   } catch {
     return await stripe.checkout.sessions.create({ ...paramsBase, payment_method_types: ['card'] });
+  }
+}
+
+/**
+ * Cobra a diária seguinte de uma assinatura direto no cartão salvo, sem o
+ * cliente precisar fazer nada (ver /api/assinaturas/gerar). Mesma captura
+ * em duas etapas do pedido avulso: autoriza agora, só é cobrado de fato
+ * no check-out do profissional. `off_session: true` avisa a Stripe que o
+ * cliente não está na tela — ela pode recusar pedindo autenticação nova
+ * (cartão que exige 3DS de novo, por exemplo); nesse caso cai pro
+ * fallback de pending_payment + "Pagar novamente", como se não tivesse
+ * cartão salvo nenhum.
+ */
+export async function cobrarAssinaturaOffSession(params: {
+  stripeCustomerId: string;
+  stripePaymentMethodId: string;
+  priceCents: number;
+  orderId: string;
+}): Promise<{ paymentIntentId: string | null; erro?: string }> {
+  if (!stripe) return { paymentIntentId: null };
+  try {
+    const intent = await stripe.paymentIntents.create({
+      amount: params.priceCents,
+      currency: 'brl',
+      customer: params.stripeCustomerId,
+      payment_method: params.stripePaymentMethodId,
+      capture_method: 'manual',
+      off_session: true,
+      confirm: true,
+      metadata: { order_id: params.orderId },
+    });
+    if (intent.status !== 'requires_capture' && intent.status !== 'succeeded') {
+      return { paymentIntentId: null, erro: `status inesperado: ${intent.status}` };
+    }
+    return { paymentIntentId: intent.id };
+  } catch (e) {
+    return { paymentIntentId: null, erro: (e as Error).message };
   }
 }
 

@@ -88,6 +88,23 @@ export async function POST(req: Request) {
     .eq('id', orderId)
     .maybeSingle();
 
+  // Salva o cartão pra cobrar sozinho as próximas diárias de uma assinatura
+  // (ver /api/assinaturas/gerar). Só quando pagou de cartão — Pix não tem
+  // "método salvo" reaproveitável pra cobrança automática.
+  if (pedido && metodo === 'credit_card') {
+    const custId = typeof sessao.customer === 'string' ? sessao.customer : sessao.customer?.id;
+    if (custId) {
+      const intent = await stripe.paymentIntents.retrieve(referencia);
+      const pmId = typeof intent.payment_method === 'string' ? intent.payment_method : intent.payment_method?.id;
+      if (pmId) {
+        await servico
+          .from('customers')
+          .update({ stripe_customer_id: custId, stripe_payment_method_id: pmId })
+          .eq('id', pedido.customer_id);
+      }
+    }
+  }
+
   if (pedido && pedido.frequency !== 'SINGLE') {
     const { weekday, windowStart, startDate } = partesDaData(pedido.scheduled_at);
     const assistencia =

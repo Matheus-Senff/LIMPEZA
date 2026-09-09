@@ -147,6 +147,11 @@ export async function POST(req: Request) {
     // que o webhook confirmar o pagamento — ver /api/webhooks/stripe.
     const origem = new URL(req.url).origin;
     const servico = await buscarPorCodigo(cotacao.service);
+    const { data: clienteExistente } = await cliente
+      .from('customers')
+      .select('stripe_customer_id')
+      .eq('id', user.id)
+      .maybeSingle();
     try {
       const sessao = await criarSessaoCheckout({
         origem,
@@ -155,6 +160,7 @@ export async function POST(req: Request) {
         nomeServico: servico?.nome ?? cotacao.service,
         customerEmail: user.email ?? undefined,
         metodo,
+        stripeCustomerId: clienteExistente?.stripe_customer_id,
       });
 
       if (!sessao.url) throw new Error('sessão sem url de checkout');

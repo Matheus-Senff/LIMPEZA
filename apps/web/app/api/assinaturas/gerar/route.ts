@@ -4,11 +4,13 @@ import { RULESET_PADRAO } from '@/lib/rulesetPadrao';
 import { quote } from '@/lib/pricing';
 import type { Ruleset, ServiceCode, Frequency } from '@/lib/pricing/types';
 import { buscarOpcionais } from '@/lib/catalogoDb';
+import { stripeConfigurado, cobrarAssinaturaOffSession } from '@/lib/stripe';
 
 export const runtime = 'nodejs';
 
 interface Pendente {
   subscription_id: string;
+  customer_id: string;
   service: ServiceCode;
   frequency: Frequency;
   minutes: number;
@@ -70,12 +72,47 @@ export async function GET(req: Request) {
         { service: p.service, minutes: p.minutes, addons, frequency: p.frequency, scheduledAt: p.scheduled_at },
         ruleset,
       );
+
+      // Sem Stripe configurada, mantém o comportamento simulado antigo:
+      // nasce direto buscando profissional, sem cobrança nenhuma.
+      const statusInicial = stripeConfigurado ? 'pending_payment' : 'searching_professional';
       const { data: novoId } = await supabase.rpc('fn_registrar_pedido_assinatura', {
         p_subscription_id: p.subscription_id,
         p_price_cents: r.priceCents,
         p_payout_cents: r.payoutCents,
+        p_status: statusInicial,
       });
-      if (novoId) geradas += 1;
+      if (!novoId) continue;
+      geradas += 1;
+
+      if (statusInicial !== 'pending_payment') continue;
+
+      // Tenta cobrar sozinho no cartão salvo da primeira compra. Sem cartão
+      // salvo (só pagou de Pix antes) ou cobrança recusada, o pedido fica
+      // pending_payment mesmo — o cliente vê "Pagar novamente" na tela dele.
+      const { data: donoDoCartao } = await supabase
+        .from('customers')
+        .select('stripe_customer_id, stripe_payment_method_id')
+        .eq('id', p.customer_id)
+        .maybeSingle();
+
+      if (!donoDoCartao?.stripe_customer_id || !donoDoCartao?.stripe_payment_method_id) continue;
+
+      const { paymentIntentId } = await cobrarAssinaturaOffSession({
+        stripeCustomerId: donoDoCartao.stripe_customer_id,
+        stripePaymentMethodId: donoDoCartao.stripe_payment_method_id,
+        priceCents: r.priceCents,
+        orderId: novoId,
+      });
+      if (!paymentIntentId) continue;
+
+      await supabase.rpc('fn_confirmar_pagamento_pedido', {
+        p_order_id: novoId,
+        p_method: 'credit_card',
+        p_amount_cents: r.priceCents,
+        p_provider_reference: paymentIntentId,
+        p_raw_payload: null,
+      });
     } catch {
       // Pula essa ocorrência agora; o próximo tick tenta de novo.
     }
