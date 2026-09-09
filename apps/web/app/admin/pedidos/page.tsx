@@ -14,8 +14,8 @@ interface PedidoAdmin {
   scheduled_at: string;
   created_at: string;
   price_cents: number;
-  customer: { full_name: string } | null;
-  professional: { full_name: string } | null;
+  customer: { profiles: { full_name: string } | null } | null;
+  professional: { profiles: { full_name: string } | null } | null;
 }
 
 // Mesma lista fixa usada em "Meus pedidos" do cliente e do profissional —
@@ -51,7 +51,7 @@ export default function AdminPedidos() {
       const { data, error } = await supabase
         .from('orders')
         .select(
-          'id, code, service, status, scheduled_at, created_at, price_cents, customer:customer_id(full_name), professional:professional_id(full_name)',
+          'id, code, service, status, scheduled_at, created_at, price_cents, customer:customer_id(profiles(full_name)), professional:professional_id(profiles(full_name))',
         )
         .order('created_at', { ascending: false })
         .limit(200);
@@ -121,8 +121,8 @@ export default function AdminPedidos() {
                     <tr key={p.id} className="border-b border-tinta-10 last:border-0">
                       <td className="py-3 pr-4 font-bold numero">{p.code}</td>
                       <td className="py-3 pr-4">{porCodigo(p.service as never)?.nome ?? p.service}</td>
-                      <td className="py-3 pr-4">{p.customer?.full_name ?? '—'}</td>
-                      <td className="py-3 pr-4">{p.professional?.full_name ?? '—'}</td>
+                      <td className="py-3 pr-4">{p.customer?.profiles?.full_name ?? '—'}</td>
+                      <td className="py-3 pr-4">{p.professional?.profiles?.full_name ?? '—'}</td>
                       <td className="py-3 pr-4 numero">
                         {new Date(p.scheduled_at).toLocaleString('pt-BR', {
                           day: '2-digit',
