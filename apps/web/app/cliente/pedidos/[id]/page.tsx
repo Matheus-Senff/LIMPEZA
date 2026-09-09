@@ -2,6 +2,7 @@
 
 import { use, useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { usePerfil } from '@/lib/usePerfil';
 import { supabase } from '@/lib/supabase';
 import { horas, reais, porCodigo, OPCIONAIS } from '@/lib/catalogo';
@@ -48,6 +49,9 @@ function mensagemNaoEditavel(status: string): string {
     return 'Esse pedido foi cancelado e não pode mais ser editado.';
   }
   if (status === 'searching_professional') return '';
+  if (status === 'pending_payment') {
+    return 'Esse pedido só pode ser editado depois que o pagamento for confirmado.';
+  }
   return 'Esse pedido já foi aceito por um profissional e não pode mais ser editado.';
 }
 
@@ -60,6 +64,9 @@ const TIPOS: { code: Endereco['home_type']; nome: string }[] = [
 export default function PedidoCliente({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const perfil = usePerfil();
+  const searchParams = useSearchParams();
+  const pago = searchParams.get('pago');
+  const pagamentoCancelado = searchParams.get('pagamento') === 'cancelado';
   const [pedido, setPedido] = useState<Pedido | null>(null);
   const [endereco, setEndereco] = useState<Endereco | null>(null);
   const [profissional, setProfissional] = useState<{ full_name: string } | null>(null);
@@ -119,6 +126,20 @@ export default function PedidoCliente({ params }: { params: Promise<{ id: string
     carregar();
   }, [carregar]);
 
+  // Voltando da Stripe: o webhook confirma o pagamento em paralelo (cartão é
+  // quase instantâneo, Pix depende do cliente escanear o QR code). Em vez de
+  // deixar a pessoa apertando F5, busca de novo sozinho por um tempo.
+  useEffect(() => {
+    if (pago !== 'processando' || pedido?.status !== 'pending_payment') return;
+    let tentativas = 0;
+    const intervalo = setInterval(() => {
+      tentativas += 1;
+      carregar();
+      if (tentativas >= 20) clearInterval(intervalo);
+    }, 3000);
+    return () => clearInterval(intervalo);
+  }, [pago, pedido?.status, carregar]);
+
   async function cancelar() {
     if (!supabase) return;
     if (!motivoCancelamento.trim()) {
@@ -127,17 +148,25 @@ export default function PedidoCliente({ params }: { params: Promise<{ id: string
     }
     setEnviando(true);
     setAviso(null);
-    const { data } = await supabase.rpc('fn_cancelar_pedido', {
-      p_order_id: id,
-      p_motivo: motivoCancelamento.trim(),
-    });
+    const { data: sessao } = await supabase.auth.getSession();
+    const token = sessao.session?.access_token;
+    const r = await fetch(`/api/pedido/${id}/cancelar`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ motivo: motivoCancelamento.trim() }),
+    }).then((x) => x.json());
     setEnviando(false);
-    if (!data) {
+    if (!r.cancelado) {
       setAviso('Não foi possível cancelar esse pedido agora.');
       return;
     }
     setMostrarCancelamento(false);
     setMotivoCancelamento('');
+    setAviso(
+      r.reembolsado
+        ? 'Pedido cancelado. O valor pago foi estornado e deve aparecer no seu extrato em alguns dias úteis.'
+        : null,
+    );
     await carregar();
   }
 
@@ -224,7 +253,7 @@ export default function PedidoCliente({ params }: { params: Promise<{ id: string
   }
 
   const servico = porCodigo(pedido.service as never);
-  const podeCancelar = ['searching_professional', 'assigned'].includes(pedido.status);
+  const podeCancelar = ['pending_payment', 'searching_professional', 'assigned'].includes(pedido.status);
   const podeEditar = pedido.status === 'searching_professional';
   const podeAvaliar = pedido.status === 'completed' && !avaliacao;
   const opcionaisDoServico = servico ? OPCIONAIS.filter((o) => o.servicos.includes(servico.code)) : [];
@@ -285,6 +314,26 @@ export default function PedidoCliente({ params }: { params: Promise<{ id: string
         </div>
         <span className="text-xs font-bold uppercase tracking-wide text-azul-600">Ver o que foi escolhido</span>
       </button>
+
+      {pago === 'processando' && pedido.status === 'pending_payment' && (
+        <p className="rounded-lg border border-tinta-10 bg-tinta-5 px-4 py-3 text-sm text-tinta-70">
+          Recebemos seu pagamento e estamos confirmando — cartão costuma ser na hora, Pix pode levar
+          alguns minutos até você escanear o QR code. Essa página atualiza sozinha.
+        </p>
+      )}
+
+      {pago === 'processando' && pedido.status !== 'pending_payment' && (
+        <p className="rounded-lg border border-verde-500/20 bg-verde-50 px-4 py-3 text-sm font-semibold text-verde-700">
+          Pagamento confirmado! Seu pedido já está aberto para os profissionais da região.
+        </p>
+      )}
+
+      {pagamentoCancelado && pedido.status === 'pending_payment' && (
+        <p className="rounded-lg border border-tinta-10 bg-tinta-5 px-4 py-3 text-sm text-tinta-70">
+          O pagamento foi cancelado antes de terminar. Esse pedido ficou aguardando pagamento — para
+          pagar, cancele-o abaixo e refaça o pedido em Serviços.
+        </p>
+      )}
 
       {pedido.status === 'searching_professional' && (
         <p className="rounded-lg border border-tinta-10 bg-tinta-5 px-4 py-3 text-sm text-tinta-70">
