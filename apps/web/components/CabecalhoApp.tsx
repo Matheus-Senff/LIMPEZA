@@ -19,20 +19,33 @@ const NAV: Record<'customer' | 'professional' | 'admin', { href: string; rotulo:
     { href: '/profissional/pedidos', rotulo: 'Painel de serviços' },
     { href: '/profissional/conta', rotulo: 'Minha conta' },
   ],
-  admin: [{ href: '/admin', rotulo: 'Backoffice' }],
+  admin: [
+    { href: '/admin', rotulo: 'Visão geral' },
+    { href: '/admin/profissionais', rotulo: 'Profissionais' },
+    { href: '/admin/clientes', rotulo: 'Clientes' },
+    { href: '/admin/pedidos', rotulo: 'Pedidos' },
+    { href: '/admin/suporte', rotulo: 'Suporte' },
+    { href: '/admin/precos', rotulo: 'Preços' },
+  ],
 };
 
 export function CabecalhoApp({ papel }: { papel: 'customer' | 'professional' | 'admin' }) {
   const router = useRouter();
   const [temAmbos, setTemAmbos] = useState(false);
+  const [souAdmin, setSouAdmin] = useState(false);
 
   // "Trocar" só existe pra quem tem cadastro de cliente E de profissional —
-  // quem é só um dos dois não tem pra onde alternar.
+  // quem é só um dos dois não tem pra onde alternar. O botão "Administração"
+  // é a mesma ideia: só aparece pra quem tem profiles.role = 'admin' — hoje é
+  // uma única conta, e continua sendo assim porque ninguém mais consegue virar
+  // admin sozinho (a troca de role é bloqueada no banco e feita só por SQL
+  // direto, nunca por um caminho do app).
   useEffect(() => {
     (async () => {
       if (papel === 'admin') return;
       const perfil = await buscarPerfil();
       if (!perfil) return;
+      setSouAdmin(perfil.role === 'admin');
       const papeis = await buscarPapeis(perfil.id);
       setTemAmbos(papeis.cliente && papeis.profissional);
     })();
@@ -62,6 +75,14 @@ export function CabecalhoApp({ papel }: { papel: 'customer' | 'professional' | '
         </div>
 
         <div className="flex h-10 items-center gap-2">
+          {souAdmin && (
+            <Link
+              href="/admin"
+              className="flex h-9 items-center rounded-full bg-tinta-solida px-3 text-sm font-semibold leading-none text-white transition hover:opacity-90"
+            >
+              Administração
+            </Link>
+          )}
           {temAmbos && (
             <button
               onClick={trocar}

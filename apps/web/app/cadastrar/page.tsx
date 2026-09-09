@@ -48,13 +48,8 @@ export default function Cadastrar() {
       return;
     }
     if (!supabase) return;
-    await supabase.from('profiles').upsert({
-      id: usuario.id,
-      role: 'customer',
-      full_name: nomeCompleto,
-      email: usuario.email,
-    });
-    await supabase.from('customers').upsert({ id: usuario.id });
+    await supabase.rpc('fn_registrar_perfil', { p_role: 'customer', p_full_name: nomeCompleto });
+    await supabase.rpc('fn_registrar_cliente');
     router.replace(ROTA_POR_PAPEL.customer);
   }
 
@@ -203,12 +198,10 @@ export default function Cadastrar() {
       return;
     }
 
-    const { error: erroPerfil } = await supabase.from('profiles').upsert({
-      id: usuario.id,
-      role: 'professional',
-      full_name: nome,
-      email,
-      phone: telefone || null,
+    const { error: erroPerfil } = await supabase.rpc('fn_registrar_perfil', {
+      p_role: 'professional',
+      p_full_name: nome,
+      p_phone: telefone || null,
     });
     if (erroPerfil) {
       setCarregando(false);
@@ -216,10 +209,9 @@ export default function Cadastrar() {
       return;
     }
 
-    const { error: erroPapel } = await supabase.from('professionals').upsert({
-      id: usuario.id,
-      document: cpf.replace(/\D/g, ''),
-      skills: servicos,
+    const { error: erroPapel } = await supabase.rpc('fn_registrar_profissional', {
+      p_document: cpf.replace(/\D/g, ''),
+      p_skills: servicos,
     });
 
     setCarregando(false);

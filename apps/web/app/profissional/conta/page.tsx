@@ -5,6 +5,7 @@ import { usePerfil } from '@/lib/usePerfil';
 import { supabase } from '@/lib/supabase';
 import { SERVICOS } from '@/lib/catalogo';
 import { ContaAcesso } from '@/components/ContaAcesso';
+import { PainelSuporte } from '@/components/PainelSuporte';
 
 const SERVICOS_PROFISSIONAL = SERVICOS.filter((s) => s.code !== 'HOME_ASSISTANCE');
 
@@ -41,8 +42,8 @@ export default function ContaProfissional() {
     setSalvando(true);
     setAviso(null);
     const [r1, r2] = await Promise.all([
-      supabase.from('profiles').update({ full_name: nome, phone: telefone || null }).eq('id', perfil.id),
-      supabase.from('professionals').update({ skills: servicos }).eq('id', perfil.id),
+      supabase.rpc('fn_atualizar_meu_perfil', { p_full_name: nome, p_phone: telefone || null }),
+      supabase.rpc('fn_atualizar_servicos_profissional', { p_skills: servicos }),
     ]);
     setSalvando(false);
     setAviso(r1.error || r2.error ? 'Não foi possível salvar.' : 'Dados atualizados.');
@@ -86,6 +87,8 @@ export default function ContaProfissional() {
       </section>
 
       <ContaAcesso email={perfil.email} />
+
+      <PainelSuporte meuId={perfil.id} />
     </main>
   );
 }
