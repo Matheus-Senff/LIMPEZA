@@ -83,3 +83,27 @@ export function rotuloData(diaISO: string) {
   ];
   return { diaSemana: nomes[data.getDay()], extenso: `${d} de ${meses[m - 1]}` };
 }
+
+/**
+ * Data e hora por extenso, no fuso de Brasília — usado nas telas de
+ * detalhe do pedido, onde o dia/horário do serviço é a informação mais
+ * importante da tela.
+ */
+export function dataHoraPorExtenso(scheduledAt: string): string {
+  const d = new Date(scheduledAt);
+  const partes = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).formatToParts(d);
+
+  const valor = (tipo: Intl.DateTimeFormatPartTypes) => partes.find((p) => p.type === tipo)?.value ?? '';
+  const diaSemana = valor('weekday');
+  const diaSemanaComMaiuscula = diaSemana.charAt(0).toUpperCase() + diaSemana.slice(1);
+
+  return `${diaSemanaComMaiuscula}, ${valor('day')} de ${valor('month')} de ${valor('year')}, às ${valor('hour')}:${valor('minute')}`;
+}

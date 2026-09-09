@@ -20,7 +20,7 @@ export function Modal({
   }, [onFechar]);
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-tinta/40 p-4" onClick={onFechar}>
+    <div className="fixed inset-0 z-[1200] grid place-items-center bg-tinta/40 p-4" onClick={onFechar}>
       <div
         className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-card bg-superficie p-6 shadow-cartao"
         onClick={(e) => e.stopPropagation()}

@@ -5,7 +5,6 @@ import type { Config } from 'tailwindcss';
 // azul + verde formam o degradê usado em acentos (.gradiente)
 const config: Config = {
   content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}'],
-  darkMode: 'class',
   theme: {
     extend: {
       colors: {
@@ -75,10 +74,25 @@ const config: Config = {
           '0%,100%': { opacity: '1' },
           '50%': { opacity: '.45' },
         },
+        flutuar1: {
+          '0%,100%': { transform: 'translate(0,0) scale(1)' },
+          '50%': { transform: 'translate(30px,40px) scale(1.15)' },
+        },
+        flutuar2: {
+          '0%,100%': { transform: 'translate(0,0) scale(1)' },
+          '50%': { transform: 'translate(-40px,-20px) scale(1.1)' },
+        },
+        flutuar3: {
+          '0%,100%': { transform: 'translate(0,0) scale(1)' },
+          '50%': { transform: 'translate(20px,-30px) scale(1.2)' },
+        },
       },
       animation: {
         entrada: 'entrada .28s ease-out both',
         pulsar: 'pulsar 1.4s ease-in-out infinite',
+        'flutuar-1': 'flutuar1 16s ease-in-out infinite',
+        'flutuar-2': 'flutuar2 20s ease-in-out infinite',
+        'flutuar-3': 'flutuar3 18s ease-in-out infinite',
       },
     },
   },
