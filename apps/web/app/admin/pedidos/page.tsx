@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { reais } from '@/lib/catalogo';
+import { reais, porCodigo } from '@/lib/catalogo';
 import { rotuloStatusPedido } from '@/lib/statusPedido';
 
 interface PedidoAdmin {
@@ -11,10 +11,27 @@ interface PedidoAdmin {
   service: string;
   status: string;
   scheduled_at: string;
+  created_at: string;
   price_cents: number;
   customer: { full_name: string } | null;
   professional: { full_name: string } | null;
 }
+
+// Mesma lista fixa usada em "Meus pedidos" do cliente e do profissional —
+// aparece sempre, mesmo com 0 pedidos naquele status, pra dar consistência
+// entre as três áreas.
+const FILTROS_FIXOS = [
+  'pending_payment',
+  'searching_professional',
+  'assigned',
+  'in_progress',
+  'completed',
+  'rated',
+  'cancelled_by_customer',
+  'cancelled_by_professional',
+  'no_show',
+  'refunded',
+];
 
 export default function AdminPedidos() {
   const [pedidos, setPedidos] = useState<PedidoAdmin[]>([]);
@@ -30,16 +47,19 @@ export default function AdminPedidos() {
       const { data } = await supabase
         .from('orders')
         .select(
-          'id, code, service, status, scheduled_at, price_cents, customer:customer_id(full_name), professional:professional_id(full_name)',
+          'id, code, service, status, scheduled_at, created_at, price_cents, customer:customer_id(full_name), professional:professional_id(full_name)',
         )
-        .order('scheduled_at', { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(200);
       setPedidos((data as unknown as PedidoAdmin[]) ?? []);
       setCarregando(false);
     })();
   }, []);
 
-  const statusPresentes = useMemo(() => Array.from(new Set(pedidos.map((p) => p.status))), [pedidos]);
+  const statusFiltraveis = useMemo(() => {
+    const extras = pedidos.map((p) => p.status).filter((s) => !FILTROS_FIXOS.includes(s));
+    return [...FILTROS_FIXOS, ...Array.from(new Set(extras))];
+  }, [pedidos]);
   const pedidosFiltrados = filtroStatus === 'todos' ? pedidos : pedidos.filter((p) => p.status === filtroStatus);
 
   return (
@@ -58,7 +78,7 @@ export default function AdminPedidos() {
           >
             Todos
           </button>
-          {statusPresentes.map((s) => (
+          {statusFiltraveis.map((s) => (
             <button
               key={s}
               onClick={() => setFiltroStatus(s)}
@@ -94,7 +114,7 @@ export default function AdminPedidos() {
                   {pedidosFiltrados.map((p) => (
                     <tr key={p.id} className="border-b border-tinta-10 last:border-0">
                       <td className="py-3 pr-4 font-bold numero">{p.code}</td>
-                      <td className="py-3 pr-4">{p.service}</td>
+                      <td className="py-3 pr-4">{porCodigo(p.service as never)?.nome ?? p.service}</td>
                       <td className="py-3 pr-4">{p.customer?.full_name ?? '—'}</td>
                       <td className="py-3 pr-4">{p.professional?.full_name ?? '—'}</td>
                       <td className="py-3 pr-4 numero">
