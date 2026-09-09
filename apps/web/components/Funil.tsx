@@ -89,6 +89,7 @@ export function Funil({
   const [enderecosSalvos, setEnderecosSalvos] = useState<EnderecoSalvo[]>([]);
   const [metodo, setMetodo] = useState<'pix' | 'credit_card'>('pix');
   const [pedido, setPedido] = useState<{ codigo: string; simulado?: boolean } | null>(null);
+  const [erroFinal, setErroFinal] = useState<string | null>(null);
 
   const areaPasso2 = useRef<HTMLDivElement>(null);
   const areaPasso3 = useRef<HTMLDivElement>(null);
@@ -224,6 +225,7 @@ export function Funil({
 
   async function finalizar() {
     setCarregando(true);
+    setErroFinal(null);
     try {
       const { data: sessao } = (await supabase?.auth.getSession()) ?? { data: { session: null } };
       const token = sessao.session?.access_token;
@@ -268,6 +270,10 @@ export function Funil({
         }),
       }).then((x) => x.json());
 
+      if (r.erro || !r.codigo) {
+        setErroFinal(r.mensagem ?? 'Não foi possível fechar o pedido agora. Tente de novo em instantes.');
+        return;
+      }
       setPedido({ codigo: r.codigo, simulado: r.simulado });
     } finally {
       setCarregando(false);
@@ -736,6 +742,12 @@ export function Funil({
                 Pagamento simulado nesta versão: nenhuma cobrança real é feita. O pedido é registrado
                 de verdade e segue para a busca de profissional.
               </div>
+
+              {erroFinal && (
+                <p className="rounded-lg border border-tinta-20 bg-tinta-5 px-4 py-3 text-sm font-semibold text-tinta">
+                  {erroFinal}
+                </p>
+              )}
 
               <button onClick={finalizar} disabled={carregando} className="btn-verde w-full">
                 {carregando ? 'Processando…' : `Confirmar e pagar ${preco ? reais(preco) : ''}`}

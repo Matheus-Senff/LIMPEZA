@@ -46,12 +46,19 @@ export async function POST(req: Request) {
 
   const { data: cotacao } = await cliente
     .from('quotes')
-    .select('id, service, frequency, minutes, addons, scheduled_at, price_cents, payout_cents, expires_at, consumed_at')
+    .select(
+      'id, customer_id, zipcode, service, frequency, minutes, addons, scheduled_at, price_cents, payout_cents, expires_at, consumed_at',
+    )
     .eq('id', body.quoteId)
     .maybeSingle();
 
   if (!cotacao) {
     return NextResponse.json({ erro: 'cotacao_nao_encontrada' }, { status: 404 });
+  }
+  // A cotação é o documento que fixa o preço: ela precisa ser desta pessoa,
+  // senão dava pra fechar pedido com o valor cotado por outra.
+  if (cotacao.customer_id && cotacao.customer_id !== user.id) {
+    return NextResponse.json({ erro: 'cotacao_de_outro_cliente' }, { status: 403 });
   }
   if (cotacao.consumed_at) {
     return NextResponse.json({ erro: 'cotacao_ja_usada' }, { status: 410 });
@@ -71,6 +78,18 @@ export async function POST(req: Request) {
   // O bairro é o que o profissional vê no mapa: se o funil não trouxe (ViaCEP
   // fora do ar naquele instante), busca de novo aqui em vez de gravar null.
   const bairro = endereco.bairro || (await bairroDoCep(cepLimpo));
+
+  // Preço é calculado por região: o endereço do serviço tem que ser o mesmo
+  // CEP que gerou a cotação.
+  if (cotacao.zipcode && cepLimpo !== cotacao.zipcode) {
+    return NextResponse.json(
+      {
+        erro: 'cep_divergente',
+        mensagem: 'O endereço do serviço mudou de CEP. Refaça a cotação para esse endereço.',
+      },
+      { status: 422 },
+    );
+  }
 
   await cliente.from('customers').upsert({ id: user.id }, { onConflict: 'id', ignoreDuplicates: true });
 
