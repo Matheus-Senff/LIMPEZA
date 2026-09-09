@@ -94,7 +94,7 @@ export function Chat({ orderId, meuId }: { orderId: string; meuId: string }) {
             <div
               key={m.id}
               className={`max-w-[80%] rounded-xl px-3 py-2 text-sm ${
-                minha ? 'self-end bg-tinta text-white' : 'self-start bg-tinta-5 text-tinta'
+                minha ? 'self-end bg-tinta-solida text-white' : 'self-start bg-tinta-5 text-tinta'
               }`}
             >
               {m.body}

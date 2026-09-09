@@ -298,7 +298,7 @@ export default function PedidoCliente({ params }: { params: Promise<{ id: string
                   type="button"
                   onClick={() => setNota(n)}
                   className={`grid h-10 w-10 place-items-center rounded-full border-2 font-bold ${
-                    nota >= n ? 'border-tinta bg-tinta text-white' : 'border-tinta-20 text-tinta-50'
+                    nota >= n ? 'border-tinta-solida bg-tinta-solida text-white' : 'border-tinta-20 text-tinta-50'
                   }`}
                   aria-label={`${n} estrela${n > 1 ? 's' : ''}`}
                 >

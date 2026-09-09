@@ -25,7 +25,7 @@ export function GradeServicos() {
               aria-selected={publico === chave}
               onClick={() => setPublico(chave)}
               className={`rounded-full px-4 py-1.5 text-xs font-bold transition ${
-                publico === chave ? 'bg-tinta text-white' : 'text-tinta-50 hover:text-tinta'
+                publico === chave ? 'bg-tinta-solida text-white' : 'text-tinta-50 hover:text-tinta'
               }`}
             >
               {chave === 'lar' ? 'Para o lar' : 'Para a empresa'}

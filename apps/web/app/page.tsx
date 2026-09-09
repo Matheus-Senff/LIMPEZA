@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Logo } from '@/components/Marca';
+import { HeroLimpeza } from '@/components/HeroLimpeza';
 import { supabase, supabaseConfigurado } from '@/lib/supabase';
 import { buscarPapeis, buscarPerfil, type Perfil } from '@/lib/perfil';
 
@@ -84,8 +85,11 @@ export default function Entrar() {
   return (
     <main className="grid min-h-screen place-items-center bg-tinta-5 px-5">
       <div className="w-full max-w-sm">
-        <div className="mb-8 flex justify-center">
+        <div className="mb-6 flex justify-center">
           <Logo />
+        </div>
+        <div className="mb-6 flex justify-center">
+          <HeroLimpeza />
         </div>
 
         {escolhendo ? (

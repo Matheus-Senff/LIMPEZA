@@ -5,6 +5,7 @@ import type { Config } from 'tailwindcss';
 // azul + verde formam o degradê usado em acentos (.gradiente)
 const config: Config = {
   content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}'],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
@@ -25,16 +26,32 @@ const config: Config = {
           600: '#059669',
           700: '#047857',
         },
+        // Escala "tinta" (texto/bordas/fundos neutros) lê de variáveis CSS
+        // que trocam de valor no modo escuro — assim toda classe existente
+        // (text-tinta-70, border-tinta-20, bg-tinta-5...) já funciona nos
+        // dois temas sem precisar de variante dark: espalhada pelo app.
         tinta: {
-          DEFAULT: '#111214',
-          80: '#26282c',
-          70: '#3f4247',
-          50: '#6b7078',
-          30: '#a1a6ad',
-          20: '#d8dbe0',
-          10: '#eceef1',
-          5: '#f6f7f9',
+          DEFAULT: 'rgb(var(--tinta) / <alpha-value>)',
+          80: 'rgb(var(--tinta-80) / <alpha-value>)',
+          70: 'rgb(var(--tinta-70) / <alpha-value>)',
+          50: 'rgb(var(--tinta-50) / <alpha-value>)',
+          30: 'rgb(var(--tinta-30) / <alpha-value>)',
+          20: 'rgb(var(--tinta-20) / <alpha-value>)',
+          10: 'rgb(var(--tinta-10) / <alpha-value>)',
+          5: 'rgb(var(--tinta-5) / <alpha-value>)',
         },
+        // Fundo da página e das superfícies (cards, modais, inputs) — a
+        // única diferença entre eles no claro é sutil (ambos quase brancos);
+        // no escuro, superficie fica um tom acima do fundo pra criar
+        // profundidade sem depender só de sombra.
+        fundo: 'rgb(var(--fundo) / <alpha-value>)',
+        superficie: 'rgb(var(--superficie) / <alpha-value>)',
+        // "Chip sólido" — botão primário, bolha do chat, dia selecionado no
+        // calendário etc. Ao contrário da escala tinta acima, esse tom NÃO
+        // troca no escuro: continua um preto fixo pareado com texto branco,
+        // porque tinta-DEFAULT vira quase-branco no escuro (serve pra texto)
+        // e quebraria esses pares "fundo escuro + texto branco".
+        'tinta-solida': '#111214',
       },
       fontFamily: {
         sans: ['var(--fonte-sans)', 'system-ui', 'sans-serif'],
