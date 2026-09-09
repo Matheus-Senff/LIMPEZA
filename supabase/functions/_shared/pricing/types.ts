@@ -1,12 +1,8 @@
-export type ServiceCode =
-  | 'CLEANING'
-  | 'HEAVY_CLEANING'
-  | 'PRE_MOVING_CLEANING'
-  | 'POST_WORK_CLEANING'
-  | 'BUSINESS_CLEANING'
-  | 'IRONING'
-  | 'FURNITURE_ASSEMBLY'
-  | 'HOME_ASSISTANCE';
+// Antes era um union fixo dos 8 serviços originais. Desde que a admin pode
+// criar/remover tipo de serviço pela tela (tabela `services` no banco, sem
+// mais enum no Postgres), o código deixou de ser um conjunto fechado — vira
+// texto validado em tempo de execução contra o catálogo carregado do banco.
+export type ServiceCode = string;
 
 export type Frequency = 'SINGLE' | 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY';
 export type HomeType = 'HOUSE' | 'APARTMENT' | 'STUDIO' | 'COMMERCIAL';

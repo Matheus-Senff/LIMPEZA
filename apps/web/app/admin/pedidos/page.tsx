@@ -40,6 +40,7 @@ export default function AdminPedidos() {
   const [pedidos, setPedidos] = useState<PedidoAdmin[]>([]);
   const [filtroStatus, setFiltroStatus] = useState('todos');
   const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -47,13 +48,14 @@ export default function AdminPedidos() {
         setCarregando(false);
         return;
       }
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('orders')
         .select(
           'id, code, service, status, scheduled_at, created_at, price_cents, customer:customer_id(full_name), professional:professional_id(full_name)',
         )
         .order('created_at', { ascending: false })
         .limit(200);
+      if (error) setErro(error.message);
       setPedidos((data as unknown as PedidoAdmin[]) ?? []);
       setCarregando(false);
     })();
@@ -95,6 +97,7 @@ export default function AdminPedidos() {
         </div>
 
         <section className="cartao p-6">
+          {erro && <p className="mb-4 text-sm font-semibold text-tinta">Erro ao carregar pedidos: {erro}</p>}
           {carregando ? (
             <p className="text-sm text-tinta-50">Carregando…</p>
           ) : pedidosFiltrados.length === 0 ? (

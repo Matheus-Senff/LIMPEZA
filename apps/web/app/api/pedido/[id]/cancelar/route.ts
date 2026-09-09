@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { clienteComToken, clienteServico, tokenDaRequisicao } from '@/lib/supabase';
-import { stripeConfigurado, estornarPagamentoPedido } from '@/lib/stripe';
+import { stripeConfigurado, estornarPagamentoPedido, expirarSessaoCheckout } from '@/lib/stripe';
 
 export const runtime = 'nodejs';
 
@@ -30,11 +30,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   const { data: pedido } = await servico
     .from('orders')
-    .select('price_cents, cancellation_fee_cents')
+    .select('price_cents, cancellation_fee_cents, stripe_checkout_session_id')
     .eq('id', id)
     .maybeSingle();
 
   if (!pedido) return NextResponse.json({ cancelado: true });
+
+  // Se ainda tinha um checkout em aberto (pedido cancelado antes de pagar,
+  // ou o profissional/cliente desistiu com uma aba antiga aberta), fecha
+  // essa porta — melhor esforço, não bloqueia o cancelamento se falhar.
+  await expirarSessaoCheckout(pedido.stripe_checkout_session_id);
 
   const { reembolsado, erro } = await estornarPagamentoPedido(
     servico,

@@ -37,6 +37,7 @@ interface Oferta {
     minutes: number;
     payout_cents: number;
     addons: string[];
+    frequency: string;
   } | null;
   detalhes?: Detalhes;
 }
@@ -68,7 +69,7 @@ export default function ProfissionalHome() {
         .maybeSingle(),
       supabase
         .from('order_offers')
-        .select('id, order_id, expires_at, orders(service, scheduled_at, minutes, payout_cents, addons)')
+        .select('id, order_id, expires_at, orders(service, scheduled_at, minutes, payout_cents, addons, frequency)')
         .eq('professional_id', perfil.id)
         .eq('status', 'sent')
         .gt('expires_at', new Date().toISOString())
@@ -322,7 +323,7 @@ export default function ProfissionalHome() {
       </section>
 
       {detalheAberto && (
-        <Modal titulo="Detalhes da oferta" onFechar={() => setDetalheAberto(null)}>
+        <Modal titulo="Detalhes da oferta" onFechar={() => setDetalheAberto(null)} largo>
           <DetalheOferta oferta={detalheAberto} />
           <div className="mt-5 flex gap-2">
             <button
@@ -346,67 +347,140 @@ export default function ProfissionalHome() {
   );
 }
 
+const FREQUENCIAS: Record<string, string> = {
+  SINGLE: 'Diária única',
+  WEEKLY: 'Semanal',
+  BIWEEKLY: 'Quinzenal',
+  MONTHLY: 'Mensal',
+};
+
+function TituloEtapa({ n, titulo }: { n: number; titulo: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-tinta-solida text-xs font-bold text-white">
+        {n}
+      </span>
+      <h3 className="text-sm font-bold uppercase tracking-wide text-tinta-70">{titulo}</h3>
+    </div>
+  );
+}
+
+function ContagemExpiracao({ expiresAt }: { expiresAt: string }) {
+  const [restanteMin, setRestanteMin] = useState(() => Math.max(0, Math.round((new Date(expiresAt).getTime() - Date.now()) / 60000)));
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      setRestanteMin(Math.max(0, Math.round((new Date(expiresAt).getTime() - Date.now()) / 60000)));
+    }, 15000);
+    return () => clearInterval(t);
+  }, [expiresAt]);
+
+  return (
+    <p className="rounded-lg border border-tinta-20 bg-tinta-5 px-4 py-2.5 text-sm font-semibold text-tinta-70">
+      {restanteMin <= 0 ? 'Essa oferta está expirando agora.' : `Você tem cerca de ${restanteMin} min para decidir.`}
+    </p>
+  );
+}
+
 function DetalheOferta({ oferta }: { oferta: Oferta }) {
   const { servicos: catalogoServicos, opcionais } = useCatalogo();
   const servico = oferta.orders ? catalogoServicos.find((s) => s.code === oferta.orders!.service) : null;
   const nomesOpcionais = opcionais.filter((o) => oferta.orders?.addons?.includes(o.code)).map((o) => o.nome);
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="grid gap-3 text-sm sm:grid-cols-2">
-        <div>
-          <p className="rotulo">Serviço</p>
-          <p className="font-semibold">{servico?.nome ?? oferta.orders?.service}</p>
+    <div className="flex flex-col gap-6">
+      <ContagemExpiracao expiresAt={oferta.expires_at} />
+
+      <div className="flex flex-col gap-2">
+        <TituloEtapa n={1} titulo="O serviço" />
+        <div className="grid gap-3 rounded-xl border border-tinta-10 p-4 text-sm sm:grid-cols-2">
+          <div>
+            <p className="rotulo">Serviço</p>
+            <p className="font-semibold">{servico?.nome ?? oferta.orders?.service}</p>
+          </div>
+          <div>
+            <p className="rotulo">Duração</p>
+            <p className="font-semibold numero">{oferta.orders ? horas(oferta.orders.minutes) : '—'}</p>
+          </div>
+          <div>
+            <p className="rotulo">Frequência</p>
+            <p className="font-semibold">
+              {oferta.orders ? FREQUENCIAS[oferta.orders.frequency] ?? oferta.orders.frequency : '—'}
+            </p>
+          </div>
+          <div>
+            <p className="rotulo">Data e horário</p>
+            <p className="font-semibold numero">
+              {oferta.orders
+                ? new Date(oferta.orders.scheduled_at).toLocaleString('pt-BR', {
+                    day: '2-digit',
+                    month: 'short',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+                : '—'}
+            </p>
+          </div>
         </div>
-        <div>
-          <p className="rotulo">Duração</p>
-          <p className="font-semibold numero">{oferta.orders ? horas(oferta.orders.minutes) : '—'}</p>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <TituloEtapa n={2} titulo="O imóvel" />
+        <div className="grid gap-3 rounded-xl border border-tinta-10 p-4 text-sm sm:grid-cols-2">
+          <div>
+            <p className="rotulo">Região</p>
+            <p className="font-semibold">
+              {oferta.detalhes
+                ? `${oferta.detalhes.district ? `${oferta.detalhes.district}, ` : ''}${oferta.detalhes.city}/${oferta.detalhes.state}`
+                : '—'}
+            </p>
+          </div>
+          {oferta.detalhes && (
+            <>
+              <div>
+                <p className="rotulo">Tipo de imóvel</p>
+                <p className="font-semibold">{TIPOS[oferta.detalhes.home_type] ?? oferta.detalhes.home_type}</p>
+              </div>
+              <div className="sm:col-span-2">
+                <p className="rotulo">Cômodos</p>
+                <p className="font-semibold numero">
+                  {oferta.detalhes.bedrooms} quarto{oferta.detalhes.bedrooms === 1 ? '' : 's'} ·{' '}
+                  {oferta.detalhes.bathrooms} banheiro{oferta.detalhes.bathrooms === 1 ? '' : 's'}
+                  {oferta.detalhes.has_pets ? ' · tem animal de estimação' : ''}
+                </p>
+              </div>
+            </>
+          )}
         </div>
-        <div>
-          <p className="rotulo">Região</p>
-          <p className="font-semibold">
-            {oferta.detalhes
-              ? `${oferta.detalhes.district ? `${oferta.detalhes.district}, ` : ''}${oferta.detalhes.city}/${oferta.detalhes.state}`
-              : '—'}
-          </p>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <TituloEtapa n={3} titulo="Itens opcionais" />
+        <div className="rounded-xl border border-tinta-10 p-4">
+          {nomesOpcionais.length > 0 ? (
+            <ul className="flex flex-col gap-1.5 text-sm">
+              {nomesOpcionais.map((n) => (
+                <li key={n} className="flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-verde-500" /> {n}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-tinta-50">Nenhum opcional selecionado.</p>
+          )}
         </div>
-        <div>
-          <p className="rotulo">Repasse</p>
-          <p className="font-semibold text-verde-700 numero">
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <TituloEtapa n={4} titulo="Quanto você recebe" />
+        <div className="rounded-xl border border-verde-500/20 bg-verde-50 p-4">
+          <p className="text-2xl font-bold text-verde-700 numero">
             {oferta.orders ? reais(oferta.orders.payout_cents) : '—'}
           </p>
+          <p className="text-xs text-tinta-50">Valor líquido, já descontada a taxa da plataforma.</p>
         </div>
-        {oferta.detalhes && (
-          <>
-            <div>
-              <p className="rotulo">Tipo de imóvel</p>
-              <p className="font-semibold">{TIPOS[oferta.detalhes.home_type] ?? oferta.detalhes.home_type}</p>
-            </div>
-            <div>
-              <p className="rotulo">Cômodos</p>
-              <p className="font-semibold numero">
-                {oferta.detalhes.bedrooms} quarto{oferta.detalhes.bedrooms === 1 ? '' : 's'} ·{' '}
-                {oferta.detalhes.bathrooms} banheiro{oferta.detalhes.bathrooms === 1 ? '' : 's'}
-                {oferta.detalhes.has_pets ? ' · tem animal de estimação' : ''}
-              </p>
-            </div>
-          </>
-        )}
       </div>
-      <div>
-        <p className="rotulo">Itens opcionais</p>
-        {nomesOpcionais.length > 0 ? (
-          <ul className="mt-1 flex flex-col gap-1 text-sm">
-            {nomesOpcionais.map((n) => (
-              <li key={n} className="flex items-center gap-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-verde-500" /> {n}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-tinta-50">Nenhum opcional selecionado.</p>
-        )}
-      </div>
+
       <p className="text-xs text-tinta-50">
         O endereço completo e as instruções de acesso só ficam disponíveis depois que você aceitar.
       </p>

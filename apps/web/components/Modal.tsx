@@ -6,10 +6,13 @@ export function Modal({
   titulo,
   onFechar,
   children,
+  largo,
 }: {
   titulo: string;
   onFechar: () => void;
   children: React.ReactNode;
+  /** ~40% mais largo que o padrão — pra conteúdo com mais informação, tipo o passo a passo de uma oferta. */
+  largo?: boolean;
 }) {
   useEffect(() => {
     function aoTeclar(e: KeyboardEvent) {
@@ -22,7 +25,9 @@ export function Modal({
   return (
     <div className="fixed inset-0 z-[1200] grid place-items-center bg-tinta/40 p-4" onClick={onFechar}>
       <div
-        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-card bg-superficie p-6 shadow-cartao"
+        className={`max-h-[90vh] w-full overflow-y-auto rounded-card bg-superficie p-6 shadow-cartao ${
+          largo ? 'max-w-[44.8rem]' : 'max-w-lg'
+        }`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"

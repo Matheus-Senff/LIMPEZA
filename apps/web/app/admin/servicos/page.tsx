@@ -52,6 +52,11 @@ export default function AdminServicos() {
   const [naoInclusoTexto, setNaoInclusoTexto] = useState('');
   const [salvando, setSalvando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
+  const [criando, setCriando] = useState(false);
+  const [novoCodigo, setNovoCodigo] = useState('');
+  const [novoNome, setNovoNome] = useState('');
+  const [avisoNovo, setAvisoNovo] = useState<string | null>(null);
+  const [removendo, setRemovendo] = useState(false);
 
   async function carregar() {
     if (!supabase) {
@@ -133,6 +138,42 @@ export default function AdminServicos() {
     salvarAddon(addon.code, { services: atual });
   }
 
+  async function criarServico() {
+    if (!supabase) return;
+    setCriando(true);
+    setAvisoNovo(null);
+    const { error } = await supabase.rpc('fn_criar_servico', {
+      p_code: novoCodigo.trim().toUpperCase().replace(/\s+/g, '_'),
+      p_name: novoNome.trim(),
+      p_min_minutes: 120,
+      p_suggested_minutes: 180,
+      p_max_minutes: 480,
+    });
+    setCriando(false);
+    if (error) {
+      setAvisoNovo('Não foi possível criar: ' + error.message);
+      return;
+    }
+    setNovoCodigo('');
+    setNovoNome('');
+    setAvisoNovo('Serviço criado — ajuste duração e preço nas telas de Serviços e Preços.');
+    await carregar();
+  }
+
+  async function removerServico(code: string) {
+    if (!supabase) return;
+    setRemovendo(true);
+    setAviso(null);
+    const { error } = await supabase.rpc('fn_remover_servico', { p_code: code });
+    setRemovendo(false);
+    if (error) {
+      setAviso('Não foi possível remover: ' + error.message);
+      return;
+    }
+    setSelecionado(null);
+    await carregar();
+  }
+
   return (
     <main className="bg-tinta-5 pb-16">
       <div className="container-app py-10">
@@ -147,6 +188,41 @@ export default function AdminServicos() {
           <p className="text-sm text-tinta-50">Carregando…</p>
         ) : (
           <>
+            <section className="cartao mb-6 p-6">
+              <h2 className="mb-1 text-lg font-bold">Criar novo serviço</h2>
+              <p className="mb-4 text-sm text-tinta-50">
+                Nasce ativo, com duração e preço genéricos — ajuste em seguida nas telas de Serviços e Preços.
+              </p>
+              <div className="flex flex-wrap items-end gap-3">
+                <label className="flex flex-col gap-1">
+                  <span className="rotulo">Nome (aparece pro cliente)</span>
+                  <input
+                    className="campo"
+                    placeholder="Ex: Jardinagem"
+                    value={novoNome}
+                    onChange={(e) => setNovoNome(e.target.value)}
+                  />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className="rotulo">Código interno</span>
+                  <input
+                    className="campo numero"
+                    placeholder="Ex: JARDINAGEM"
+                    value={novoCodigo}
+                    onChange={(e) => setNovoCodigo(e.target.value)}
+                  />
+                </label>
+                <button
+                  onClick={criarServico}
+                  disabled={criando || !novoNome.trim() || !novoCodigo.trim()}
+                  className="btn-primario"
+                >
+                  {criando ? 'Criando…' : 'Criar serviço'}
+                </button>
+              </div>
+              {avisoNovo && <p className="mt-3 text-sm font-semibold text-tinta">{avisoNovo}</p>}
+            </section>
+
             <div className="mb-5 flex flex-wrap gap-2">
               {servicos.map((s) => (
                 <button
@@ -289,9 +365,19 @@ export default function AdminServicos() {
                 </div>
 
                 {aviso && <p className="text-sm font-semibold text-tinta">{aviso}</p>}
-                <button onClick={salvarServico} disabled={salvando} className="btn-primario w-fit">
-                  {salvando ? 'Salvando…' : 'Salvar serviço'}
-                </button>
+                <div className="flex flex-wrap items-center gap-3">
+                  <button onClick={salvarServico} disabled={salvando} className="btn-primario w-fit">
+                    {salvando ? 'Salvando…' : 'Salvar serviço'}
+                  </button>
+                  <button
+                    onClick={() => removerServico(selecionado)}
+                    disabled={removendo}
+                    className="text-xs font-bold text-tinta-50 underline"
+                    title="Só remove se o serviço nunca foi usado em pedido, cotação ou assinatura"
+                  >
+                    {removendo ? 'Removendo…' : 'Remover serviço'}
+                  </button>
+                </div>
               </section>
             )}
 

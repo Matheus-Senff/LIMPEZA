@@ -214,15 +214,17 @@ export function Funil({
   };
 
   // ------------------------------------------------------------ ações
-  async function verPreco(e: React.FormEvent) {
-    e.preventDefault();
+  // O CEP nunca é digitado no funil — vem do endereço salvo escolhido no
+  // perfil. Escolher o endereço já verifica cobertura e calcula o preço.
+  async function escolherEnderecoEVerPreco(endereco: EnderecoSalvo) {
+    selecionarEnderecoSalvo(endereco);
     setErroCep(null);
     setCarregando(true);
     try {
       const r = await fetch('/api/cobertura', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ zipcode: cep, service: servico.code, email: perfil.email }),
+        body: JSON.stringify({ zipcode: endereco.zipcode, service: servico.code, email: perfil.email }),
       }).then((x) => x.json());
 
       if (!r.coberto) {
@@ -230,12 +232,12 @@ export function Funil({
         return;
       }
       setRuleset(r.ruleset as Ruleset);
-      setCidade(r.cidade ?? null);
-      setUf(r.estado ?? null);
-      setBairro(r.bairro ?? null);
+      setCidade(r.cidade ?? endereco.city);
+      setUf(r.estado ?? endereco.state);
+      setBairro(r.bairro ?? endereco.district);
       avancarPara(2, areaPasso2);
     } catch {
-      setErroCep('Não conseguimos validar seu CEP agora. Tente de novo em instantes.');
+      setErroCep('Não conseguimos validar esse endereço agora. Tente de novo em instantes.');
     } finally {
       setCarregando(false);
     }
@@ -272,15 +274,9 @@ export function Funil({
           quoteId: cotacao.quoteId,
           metodo,
           cliente: { nome, email: perfil.email, telefone },
+          enderecoId: enderecoSalvoId,
           endereco: {
-            cep,
-            rua,
-            numero,
-            complemento,
             acesso,
-            cidade,
-            estado: uf,
-            bairro,
             homeType: tipoLar,
             bedrooms: quartos,
             bathrooms: banheiros,
@@ -415,28 +411,44 @@ export function Funil({
                 </p>
               </div>
 
-              <form onSubmit={verPreco} className="flex flex-col gap-3">
-                <h3 className="text-base font-bold">Qual o seu CEP?</h3>
-                <div className="max-w-xs">
-                  <input
-                    inputMode="numeric"
-                    required
-                    value={cep}
-                    onChange={(e) => setCep(e.target.value.replace(/\D/g, '').slice(0, 8))}
-                    placeholder="Qual seu CEP?"
-                    className="campo"
-                    aria-label="CEP"
-                  />
-                </div>
+              <div className="flex flex-col gap-3">
+                <h3 className="text-base font-bold">Em qual endereço?</h3>
+                {enderecosSalvos.length === 0 ? (
+                  <p className="rounded-lg border border-tinta-20 bg-tinta-5 px-4 py-3 text-sm text-tinta-70">
+                    Você ainda não tem endereço salvo.{' '}
+                    <Link href="/cliente/conta" className="font-bold text-azul-600 underline">
+                      Cadastre um no seu perfil
+                    </Link>{' '}
+                    antes de pedir um serviço.
+                  </p>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {enderecosSalvos.map((e) => (
+                      <button
+                        key={e.id}
+                        type="button"
+                        disabled={carregando}
+                        onClick={() => escolherEnderecoEVerPreco(e)}
+                        className={`rounded-xl border-2 px-4 py-3 text-left text-sm font-semibold transition ${
+                          enderecoSalvoId === e.id ? 'border-azul-600 bg-azul-50' : 'border-tinta-20 hover:border-tinta-50'
+                        }`}
+                      >
+                        <span className="block">{e.label ?? `${e.street}, ${e.number}`}</span>
+                        <span className="block font-normal text-tinta-50">
+                          {e.district ? `${e.district} · ` : ''}
+                          {e.city}/{e.state} · CEP {e.zipcode}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {erroCep && (
                   <p className="rounded-lg border border-tinta-20 bg-tinta-5 px-4 py-3 text-sm font-semibold text-tinta">
                     {erroCep}
                   </p>
                 )}
-                <button type="submit" disabled={carregando} className="btn-primario w-full sm:w-auto">
-                  {carregando ? 'Calculando…' : 'Ver preço'}
-                </button>
-              </form>
+                {carregando && <p className="text-sm text-tinta-50">Calculando preço…</p>}
+              </div>
             </div>
           )}
         </section>
@@ -684,40 +696,16 @@ export function Funil({
           <Cabecalho n={5} titulo="Endereço e acesso" ativo={passo === 5} />
           {passo === 5 && (
             <div className="mt-6 flex animate-entrada flex-col gap-4">
-              {enderecosSalvos.length > 0 && (
-                <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sem-barra">
-                  {enderecosSalvos.map((e) => (
-                    <button
-                      key={e.id}
-                      type="button"
-                      onClick={() => selecionarEnderecoSalvo(e)}
-                      className={`shrink-0 rounded-xl border-2 px-4 py-2 text-left text-xs font-semibold transition ${
-                        enderecoSalvoId === e.id ? 'border-azul-600 bg-azul-50' : 'border-tinta-20 hover:border-tinta-50'
-                      }`}
-                    >
-                      <span className="block">{e.label ?? `${e.street}, ${e.number}`}</span>
-                      <span className="block font-normal text-tinta-50">
-                        {e.district ? `${e.district} · ` : ''}
-                        {e.city}/{e.state}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-              <div className="grid gap-3 sm:grid-cols-[1fr_120px]">
-                <input className="campo" placeholder="Rua" value={rua} onChange={(e) => setRua(e.target.value)} aria-label="Rua" />
-                <input className="campo" placeholder="Número" value={numero} onChange={(e) => setNumero(e.target.value)} aria-label="Número" />
-              </div>
-              <input className="campo" placeholder="Complemento (bloco, apto)" value={complemento} onChange={(e) => setComplemento(e.target.value)} aria-label="Complemento" />
-              {(bairro || cidade) && (
-                <p className="text-xs text-tinta-50">
-                  Bairro: <b className="text-tinta-70">{bairro ?? '—'}</b> · Cidade:{' '}
-                  <b className="text-tinta-70">
-                    {cidade}/{uf}
-                  </b>{' '}
-                  · CEP <b className="text-tinta-70 numero">{cep}</b>
+              <div className="rounded-xl border border-tinta-20 bg-tinta-5 px-4 py-3 text-sm">
+                <p className="font-bold">{rua}, {numero}{complemento ? ` — ${complemento}` : ''}</p>
+                <p className="text-tinta-50">
+                  {bairro ? `${bairro} · ` : ''}
+                  {cidade}/{uf} · CEP <span className="numero">{cep}</span>
                 </p>
-              )}
+                <button type="button" onClick={() => setPasso(1)} className="mt-1 text-xs font-bold text-azul-600 underline">
+                  Trocar endereço
+                </button>
+              </div>
               <textarea
                 className="campo min-h-[90px]"
                 placeholder="Como o profissional entra? Portaria, chave com o vizinho, cachorro em casa…"

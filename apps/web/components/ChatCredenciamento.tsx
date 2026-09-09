@@ -29,19 +29,25 @@ function horaMensagem(iso: string) {
   return new Intl.DateTimeFormat('pt-BR', { timeZone: FUSO, hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
 }
 
-export function Chat({
-  orderId,
+/**
+ * Conversa entre a admin e o profissional durante o credenciamento — nasce
+ * junto com o cadastro do profissional (fn_registrar_profissional), então
+ * a admin já pode chamar pra combinar o treinamento antes dos documentos
+ * chegarem. Mesma UI do chat de pedido (components/Chat.tsx), mas lendo de
+ * credentialing_chat_threads/credentialing_chat_messages.
+ */
+export function ChatCredenciamento({
+  professionalId,
   meuId,
   meuNome,
   outroNome,
 }: {
-  orderId: string;
+  professionalId: string;
   meuId: string;
   meuNome: string;
   outroNome: string;
 }) {
   const [threadId, setThreadId] = useState<string | null>(null);
-  const [encerradaEm, setEncerradaEm] = useState<string | null>(null);
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
   const [texto, setTexto] = useState('');
   const [carregando, setCarregando] = useState(true);
@@ -56,9 +62,9 @@ export function Chat({
 
     (async () => {
       const { data: thread } = await supabase
-        .from('chat_threads')
-        .select('id, closed_at')
-        .eq('order_id', orderId)
+        .from('credentialing_chat_threads')
+        .select('id')
+        .eq('professional_id', professionalId)
         .maybeSingle();
 
       if (!ativo) return;
@@ -67,10 +73,9 @@ export function Chat({
         return;
       }
       setThreadId(thread.id);
-      setEncerradaEm(thread.closed_at);
 
       const { data: msgs } = await supabase
-        .from('chat_messages')
+        .from('credentialing_chat_messages')
         .select('id, sender_id, body, created_at')
         .eq('thread_id', thread.id)
         .order('created_at', { ascending: true });
@@ -80,10 +85,10 @@ export function Chat({
       setCarregando(false);
 
       const canal = supabase
-        .channel(`chat-${thread.id}`)
+        .channel(`chat-credenciamento-${thread.id}`)
         .on(
           'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `thread_id=eq.${thread.id}` },
+          { event: 'INSERT', schema: 'public', table: 'credentialing_chat_messages', filter: `thread_id=eq.${thread.id}` },
           (payload) => {
             setMensagens((atual) => [...atual, payload.new as Mensagem]);
           },
@@ -98,7 +103,7 @@ export function Chat({
     return () => {
       ativo = false;
     };
-  }, [orderId]);
+  }, [professionalId]);
 
   useEffect(() => {
     fimDaLista.current?.scrollIntoView({ behavior: 'smooth' });
@@ -109,13 +114,11 @@ export function Chat({
     if (!supabase || !threadId || !texto.trim()) return;
     const corpo = texto.trim();
     setTexto('');
-    await supabase.from('chat_messages').insert({ thread_id: threadId, sender_id: meuId, body: corpo });
+    await supabase.from('credentialing_chat_messages').insert({ thread_id: threadId, sender_id: meuId, body: corpo });
   }
 
   if (carregando) return <p className="text-sm text-tinta-50">Carregando conversa…</p>;
-  if (!threadId) return null;
-
-  const encerrada = !!encerradaEm && new Date(encerradaEm).getTime() <= Date.now();
+  if (!threadId) return <p className="text-sm text-tinta-50">Conversa ainda não disponível.</p>;
 
   let diaAnterior: string | null = null;
 
@@ -151,24 +154,18 @@ export function Chat({
         })}
         <div ref={fimDaLista} />
       </div>
-      {encerrada ? (
-        <p className="text-sm text-tinta-50">
-          Conversa encerrada — o pedido acabou há mais de 48h.
-        </p>
-      ) : (
-        <form onSubmit={enviar} className="flex gap-2">
-          <input
-            className="campo"
-            placeholder="Escreva uma mensagem"
-            value={texto}
-            onChange={(e) => setTexto(e.target.value)}
-            aria-label="Mensagem"
-          />
-          <button className="btn-primario !px-5" disabled={!texto.trim()}>
-            Enviar
-          </button>
-        </form>
-      )}
+      <form onSubmit={enviar} className="flex gap-2">
+        <input
+          className="campo"
+          placeholder="Escreva uma mensagem"
+          value={texto}
+          onChange={(e) => setTexto(e.target.value)}
+          aria-label="Mensagem"
+        />
+        <button className="btn-primario !px-5" disabled={!texto.trim()}>
+          Enviar
+        </button>
+      </form>
     </div>
   );
 }
