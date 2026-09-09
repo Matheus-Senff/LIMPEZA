@@ -286,6 +286,13 @@ export default function PedidoCliente({ params }: { params: Promise<{ id: string
         <span className="text-xs font-bold uppercase tracking-wide text-azul-600">Ver o que foi escolhido</span>
       </button>
 
+      {pedido.status === 'searching_professional' && (
+        <p className="rounded-lg border border-tinta-10 bg-tinta-5 px-4 py-3 text-sm text-tinta-70">
+          Seu pedido está aberto para os profissionais da região e é reenviado a cada poucos minutos
+          até alguém aceitar. Enquanto ninguém aceita, você pode editar ou cancelar sem taxa.
+        </p>
+      )}
+
       {aviso && (
         <p className="rounded-lg border border-tinta-20 bg-tinta-5 px-4 py-3 text-sm font-semibold text-tinta">{aviso}</p>
       )}
@@ -305,7 +312,9 @@ export default function PedidoCliente({ params }: { params: Promise<{ id: string
         />
       )}
 
-      <ResumoEncerramento status={pedido.status} motivo={pedido.cancellation_reason} avaliacao={avaliacao} />
+      {!podeAvaliar && (
+        <ResumoEncerramento status={pedido.status} motivo={pedido.cancellation_reason} avaliacao={avaliacao} />
+      )}
 
       {podeAvaliar && (
         <div className="cartao p-6">

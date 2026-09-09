@@ -117,7 +117,7 @@ export function Chat({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex max-h-96 flex-col gap-1 overflow-y-auto rounded-xl border border-tinta-10 p-3">
+      <div className="flex max-h-[55vh] min-h-[10rem] flex-col gap-1 overflow-y-auto rounded-xl border border-tinta-10 p-3">
         {mensagens.length === 0 && <p className="text-sm text-tinta-50">Nenhuma mensagem ainda.</p>}
         {mensagens.map((m) => {
           const minha = m.sender_id === meuId;

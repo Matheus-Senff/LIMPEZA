@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Logo } from '@/components/Marca';
 import { supabase, supabaseConfigurado } from '@/lib/supabase';
-import { buscarPerfil, ROTA_POR_PAPEL, type PapelUsuario } from '@/lib/perfil';
+import { buscarPapeis, buscarPerfil, ROTA_POR_PAPEL, type PapelUsuario } from '@/lib/perfil';
 import { SERVICOS } from '@/lib/catalogo';
 import type { User } from '@supabase/supabase-js';
 
@@ -79,9 +79,19 @@ export default function Cadastrar() {
 
       const perfil = await buscarPerfil();
       if (perfil) {
-        // A conta pode ter os dois papéis (cliente e profissional) — quem
-        // decide pra onde mandar é a tela de login.
-        router.replace('/');
+        // Perfil existe, mas pode faltar a linha de cliente/profissional —
+        // é o caso de quem parou o cadastro no meio. Mandar pra tela de
+        // login aqui criava um vaivém sem fim entre / e /cadastrar, então
+        // retomamos o cadastro do ponto que falta.
+        const papeis = await buscarPapeis(perfil.id);
+        if (papeis.cliente || papeis.profissional || perfil.role === 'admin') {
+          // A conta pode ter os dois papéis — quem decide pra onde mandar é
+          // a tela de login.
+          router.replace('/');
+          return;
+        }
+        const metaPerfil = usuario.user_metadata as { role?: Papel; full_name?: string };
+        await finalizarSessao(usuario, metaPerfil.role ?? 'customer', metaPerfil.full_name ?? perfil.full_name);
         return;
       }
 

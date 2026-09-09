@@ -52,7 +52,19 @@ export function ResumoEncerramento({
     );
   }
 
-  if (!avaliacao) return null;
+  if (!avaliacao) {
+    // Sem chat e sem avaliação a tela ficava vazia depois do serviço — o
+    // profissional não sabia se ainda ia ser avaliado ou não.
+    if (status === 'completed') {
+      return (
+        <div className="cartao p-6">
+          <h2 className="text-sm font-bold uppercase tracking-wide text-tinta-50">Serviço concluído</h2>
+          <p className="mt-2 text-sm text-tinta-70">Aguardando a avaliação do cliente.</p>
+        </div>
+      );
+    }
+    return null;
+  }
 
   return (
     <div className="cartao p-6">

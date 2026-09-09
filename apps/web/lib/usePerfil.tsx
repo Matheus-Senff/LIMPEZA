@@ -10,11 +10,20 @@ export function GuardaPerfil({ papel, children }: { papel: PapelUsuario; childre
   const router = useRouter();
   const [perfil, setPerfil] = useState<Perfil | null>(null);
   const [pronto, setPronto] = useState(false);
+  const [falhou, setFalhou] = useState(false);
 
   useEffect(() => {
     let ativo = true;
     (async () => {
-      const p = await buscarPerfil();
+      let p: Perfil | null;
+      try {
+        p = await buscarPerfil();
+      } catch {
+        // Sem internet ou Supabase fora do ar: mostra saída em vez de deixar
+        // a tela branca pra sempre.
+        if (ativo) setFalhou(true);
+        return;
+      }
       if (!ativo) return;
       if (!p) {
         router.replace('/');
@@ -39,6 +48,25 @@ export function GuardaPerfil({ papel, children }: { papel: PapelUsuario; childre
       ativo = false;
     };
   }, [router, papel]);
+
+  if (falhou) {
+    return (
+      <main className="container-app grid min-h-[60vh] place-items-center py-10 text-center">
+        <div>
+          <p className="font-bold">Não conseguimos carregar sua conta agora.</p>
+          <p className="mt-1 text-sm text-tinta-50">Verifique sua conexão e tente de novo.</p>
+          <div className="mt-5 flex justify-center gap-2">
+            <button onClick={() => window.location.reload()} className="btn-primario">
+              Tentar de novo
+            </button>
+            <a href="/" className="btn-contorno">
+              Voltar ao login
+            </a>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   if (!pronto || !perfil) return null;
   return <PerfilContext.Provider value={perfil}>{children}</PerfilContext.Provider>;

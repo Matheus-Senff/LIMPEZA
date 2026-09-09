@@ -133,13 +133,22 @@ export default function ContaCliente() {
       city: form.cidade,
       state: form.estado.slice(0, 2),
     };
-    // Editar altera a linha que já existe — não cria uma cópia nova nem
-    // mexe nos pedidos antigos, que guardam o endereço pelo mesmo id.
-    const { error } = editandoId
-      ? await supabase.from('addresses').update(dados).eq('id', editandoId)
-      : await supabase.from('addresses').insert({ customer_id: perfil.id, ...dados });
+    // A RPC edita a linha no lugar quando ela ainda não foi usada em pedido
+    // nenhum; se já foi, grava uma versão nova e aposenta a antiga, pra não
+    // reescrever o endereço que aparece num pedido já feito.
+    const { data, error } = await supabase.rpc('fn_salvar_endereco', {
+      p_id: editandoId,
+      p_label: dados.label,
+      p_zipcode: dados.zipcode,
+      p_street: dados.street,
+      p_number: dados.number,
+      p_complement: dados.complement,
+      p_district: dados.district,
+      p_city: dados.city,
+      p_state: dados.state,
+    });
     setSalvandoEndereco(false);
-    if (error) {
+    if (error || !data) {
       setAvisoEndereco('Não foi possível salvar esse endereço agora.');
       return;
     }
@@ -155,10 +164,10 @@ export default function ContaCliente() {
     setAvisoEndereco(null);
     // Soft delete: pedidos antigos continuam com o endereço completo pro
     // histórico, mesmo depois que o usuário "remove" ele daqui.
-    const { error } = await supabase.from('addresses').update({ active: false }).eq('id', id);
+    const { data, error } = await supabase.rpc('fn_remover_endereco', { p_id: id });
     setRemovendo(null);
     setEnderecoParaRemover(null);
-    if (error) {
+    if (error || !data) {
       setAvisoEndereco('Não foi possível remover esse endereço agora.');
       return;
     }

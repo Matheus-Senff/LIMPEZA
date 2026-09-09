@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { clienteServico } from '@/lib/supabase';
 import { RULESET_PADRAO } from '@/lib/rulesetPadrao';
 import { quote } from '@/lib/pricing';
 import type { Ruleset, ServiceCode, Frequency } from '@/lib/pricing/types';
@@ -20,18 +20,21 @@ interface Pendente {
 /**
  * Gera as próximas diárias de assinaturas ativas, com preço calculado de
  * verdade (o motor de preço só existe em TypeScript, por isso isso não
- * pode ser feito só em SQL/pg_cron). Chamado pelo cron da Vercel
- * (vercel.json). Protegido por CRON_SECRET quando essa env var existe —
- * sem ela, fica aberto (não expõe nada sensível: só processa assinaturas
- * já existentes com preço calculado no servidor).
+ * pode ser feito só em SQL/pg_cron). Chamado pelo cron da Vercel.
+ *
+ * Duas travas, porque essa rota cria pedido em nome de outra pessoa:
+ * CRON_SECRET é obrigatório (sem ele a rota não roda) e o acesso ao banco
+ * usa a chave de serviço — as RPCs de assinatura não respondem mais para
+ * anon nem para usuário logado.
  */
 export async function GET(req: Request) {
   const segredo = process.env.CRON_SECRET;
-  if (segredo && req.headers.get('authorization') !== `Bearer ${segredo}`) {
+  if (!segredo || req.headers.get('authorization') !== `Bearer ${segredo}`) {
     return NextResponse.json({ erro: 'nao_autorizado' }, { status: 401 });
   }
+  const supabase = clienteServico();
   if (!supabase) {
-    return NextResponse.json({ geradas: 0, motivo: 'supabase_nao_configurado' });
+    return NextResponse.json({ geradas: 0, motivo: 'sem_chave_de_servico' });
   }
 
   const { data } = await supabase.rpc('fn_assinaturas_para_gerar', { p_dias_a_frente: 3 });

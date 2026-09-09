@@ -11,6 +11,7 @@ interface DadosProfissional {
   rating_avg: number;
   rating_count: number;
   completed_orders: number;
+  accreditation_status: string;
 }
 
 interface Detalhes {
@@ -59,7 +60,7 @@ export default function ProfissionalHome() {
     const [prof, ofe] = await Promise.all([
       supabase
         .from('professionals')
-        .select('rating_avg, rating_count, completed_orders')
+        .select('rating_avg, rating_count, completed_orders, accreditation_status')
         .eq('id', perfil.id)
         .maybeSingle(),
       supabase
@@ -178,6 +179,16 @@ export default function ProfissionalHome() {
     <main className="container-app flex flex-col gap-8 py-10">
       <h1 className="text-2xl font-bold tracking-tight">Olá, {primeiroNome}</h1>
 
+      {!carregando && dados && dados.accreditation_status !== 'approved' && (
+        <div className="cartao p-5">
+          <p className="font-bold">Credenciamento em análise</p>
+          <p className="mt-1 text-sm text-tinta-50">
+            Seu cadastro está em análise. Você já consegue ver e aceitar ofertas; assim que o
+            credenciamento for aprovado, o selo aparece no seu perfil para os clientes.
+          </p>
+        </div>
+      )}
+
       {!carregando && dados && (
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="cartao p-5">
@@ -227,6 +238,10 @@ export default function ProfissionalHome() {
         ) : ofertas.length === 0 ? (
           <div className="cartao p-8 text-center">
             <p className="font-semibold">Nenhuma oferta no momento</p>
+            <p className="mt-1 text-sm text-tinta-50">
+              As ofertas chegam sozinhas quando alguém pede um serviço que você atende nas suas
+              cidades — a lista se atualiza a cada poucos minutos.
+            </p>
           </div>
         ) : visao === 'mapa' ? (
           <MapaOfertas

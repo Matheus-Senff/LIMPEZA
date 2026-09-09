@@ -60,6 +60,7 @@ export function CabecalhoApp({ papel }: { papel: 'customer' | 'professional' | '
             ))}
           </nav>
         </div>
+
         <div className="flex h-10 items-center gap-2">
           {temAmbos && (
             <button
@@ -78,6 +79,20 @@ export function CabecalhoApp({ papel }: { papel: 'customer' | 'professional' | '
           <AlternarTema />
         </div>
       </div>
+
+      {/* No celular o menu de cima não cabe ao lado da logo: vira uma linha
+          rolável embaixo, em vez de sumir e deixar a pessoa sem navegação. */}
+      <nav className="container-app -mx-1 flex gap-2 overflow-x-auto px-1 pb-2 sem-barra sm:hidden">
+        {NAV[papel].map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className="shrink-0 rounded-full bg-tinta-5 px-4 py-1.5 text-sm font-semibold text-tinta-70"
+          >
+            {item.rotulo}
+          </Link>
+        ))}
+      </nav>
     </header>
   );
 }

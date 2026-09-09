@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase, tokenDaRequisicao } from '@/lib/supabase';
+import { clienteComToken, supabase, tokenDaRequisicao } from '@/lib/supabase';
 import { RULESET_PADRAO } from '@/lib/rulesetPadrao';
 import { quote } from '@/lib/pricing';
 import type { Frequency, Ruleset, ServiceCode } from '@/lib/pricing/types';
@@ -27,6 +27,10 @@ export async function POST(req: Request) {
 
   const token = tokenDaRequisicao(req);
   const usuarioId = token && supabase ? (await supabase.auth.getUser(token)).data.user?.id ?? null : null;
+  // A cotação é gravada com o token do usuário: só assim o RLS reconhece o
+  // dono da linha na hora de ler de volta (a leitura por id foi fechada,
+  // porque expunha preço e repasse de todo mundo).
+  const clienteDono = token ? clienteComToken(token) : null;
 
   const cep = String(body.zipcode ?? '').replace(/\D/g, '');
   const service = String(body.service ?? 'CLEANING') as ServiceCode;
@@ -87,8 +91,8 @@ export async function POST(req: Request) {
     let quoteId: string | null = null;
     let expiraEm: string | null = null;
 
-    if (supabase && rulesetId) {
-      const { data } = await supabase
+    if (clienteDono && usuarioId && rulesetId) {
+      const { data } = await clienteDono
         .from('quotes')
         .insert({
           customer_id: usuarioId,

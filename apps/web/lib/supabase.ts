@@ -33,3 +33,17 @@ export function tokenDaRequisicao(req: Request): string | null {
   if (!cabecalho?.startsWith('Bearer ')) return null;
   return cabecalho.slice('Bearer '.length);
 }
+
+/**
+ * Cliente com a chave de serviço (service role), só para o cron de
+ * assinaturas: as funções `fn_assinaturas_para_gerar` e
+ * `fn_registrar_pedido_assinatura` deixaram de ser chamáveis por qualquer
+ * visitante e agora só respondem para esse client, que nunca chega ao browser.
+ */
+export function clienteServico(): SupabaseClient | null {
+  const chaveServico = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !chaveServico) return null;
+  return createClient(url, chaveServico, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
