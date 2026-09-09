@@ -96,9 +96,14 @@ export default function PedidoProfissional({ params }: { params: Promise<{ id: s
     if (!supabase) return;
     setEnviando(true);
     setAviso(null);
-    const { data } = await supabase.rpc('fn_check_out', { p_order_id: id });
+    const { data: sessao } = await supabase.auth.getSession();
+    const token = sessao.session?.access_token;
+    const r = await fetch(`/api/pedido/${id}/finalizar-profissional`, {
+      method: 'POST',
+      headers: token ? { authorization: `Bearer ${token}` } : {},
+    }).then((x) => x.json());
     setEnviando(false);
-    if (!data) setAviso('Não foi possível fazer o check-out agora.');
+    if (!r.finalizado) setAviso('Não foi possível fazer o check-out agora.');
     await carregar();
   }
 
