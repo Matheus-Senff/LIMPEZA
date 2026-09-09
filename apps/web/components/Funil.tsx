@@ -721,12 +721,12 @@ export function Funil({
                     code: 'pix' as const,
                     titulo: 'Pix',
                     texto: STRIPE_ATIVA
-                      ? 'Você paga escaneando o QR code. O pedido entra na busca de profissional assim que o Pix cair.'
+                      ? 'Você escaneia o QR code na tela seguinte. O pedido entra na busca de profissional assim que o Pix cair.'
                       : 'Pagamento no momento do pedido. A vaga é reservada na hora.',
                   },
                   {
                     code: 'credit_card' as const,
-                    titulo: 'Cartão de crédito',
+                    titulo: 'Cartão de crédito ou débito',
                     texto: STRIPE_ATIVA
                       ? 'Cobrado no momento da confirmação do pedido.'
                       : 'Autorizamos agora e só cobramos depois que o serviço for concluído.',
@@ -755,7 +755,7 @@ export function Funil({
 
               <div className="rounded-xl bg-tinta-5 px-4 py-3 text-xs font-semibold text-tinta-70">
                 {STRIPE_ATIVA
-                  ? 'Pagamento processado com segurança pela Stripe. O pedido entra na busca de profissional assim que o pagamento for confirmado.'
+                  ? 'Isso aqui é só uma preferência — na tela de pagamento da Stripe você pode escolher Pix ou cartão à vontade. Processado com segurança pela Stripe; o pedido entra na busca de profissional assim que o pagamento for confirmado.'
                   : 'Pagamento simulado nesta versão: nenhuma cobrança real é feita. O pedido é registrado de verdade e segue para a busca de profissional.'}
               </div>
 
