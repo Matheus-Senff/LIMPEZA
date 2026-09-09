@@ -17,6 +17,16 @@ interface Pedido {
   price_cents: number;
 }
 
+const FILTROS_FIXOS = [
+  'searching_professional',
+  'assigned',
+  'in_progress',
+  'completed',
+  'rated',
+  'cancelled_by_customer',
+  'cancelled_by_professional',
+];
+
 export default function MeusPedidosCliente() {
   const perfil = usePerfil();
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
@@ -40,7 +50,13 @@ export default function MeusPedidosCliente() {
     })();
   }, [perfil.id]);
 
-  const statusPresentes = useMemo(() => Array.from(new Set(pedidos.map((p) => p.status))), [pedidos]);
+  // Os filtros principais aparecem sempre (mesmo zerados) pra pessoa saber
+  // que existem; qualquer status fora da lista entra depois, se houver.
+  const statusFiltraveis = useMemo(() => {
+    const presentes = pedidos.map((p) => p.status);
+    const extras = presentes.filter((s) => !FILTROS_FIXOS.includes(s));
+    return [...FILTROS_FIXOS, ...Array.from(new Set(extras))];
+  }, [pedidos]);
   const pedidosFiltrados = filtro === 'todos' ? pedidos : pedidos.filter((p) => p.status === filtro);
 
   return (
@@ -71,7 +87,7 @@ export default function MeusPedidosCliente() {
             >
               Todos
             </button>
-            {statusPresentes.map((s) => (
+            {statusFiltraveis.map((s) => (
               <button
                 key={s}
                 onClick={() => setFiltro(s)}

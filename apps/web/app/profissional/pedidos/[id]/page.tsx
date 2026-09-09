@@ -8,6 +8,8 @@ import { horas, reais, porCodigo } from '@/lib/catalogo';
 import { dataHoraPorExtenso } from '@/lib/agenda';
 import { ChatPedido } from '@/components/ChatPedido';
 import { rotuloStatusPedido } from '@/lib/statusPedido';
+import { Modal } from '@/components/Modal';
+import { ResumoEncerramento, chatLiberado } from '@/components/ResumoEncerramento';
 
 interface Pedido {
   id: string;
@@ -19,6 +21,7 @@ interface Pedido {
   payout_cents: number;
   address_id: string;
   customer_id: string;
+  cancellation_reason: string | null;
 }
 
 interface Endereco {
@@ -39,6 +42,9 @@ export default function PedidoProfissional({ params }: { params: Promise<{ id: s
   const [carregando, setCarregando] = useState(true);
   const [enviando, setEnviando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
+  const [avaliacao, setAvaliacao] = useState<{ rating: number; comment: string | null } | null>(null);
+  const [mostrarCancelamento, setMostrarCancelamento] = useState(false);
+  const [motivoCancelamento, setMotivoCancelamento] = useState('');
 
   const carregar = useCallback(async () => {
     if (!supabase) {
@@ -47,22 +53,24 @@ export default function PedidoProfissional({ params }: { params: Promise<{ id: s
     }
     const { data: p } = await supabase
       .from('orders')
-      .select('id, code, service, scheduled_at, minutes, status, payout_cents, address_id, customer_id')
+      .select('id, code, service, scheduled_at, minutes, status, payout_cents, address_id, customer_id, cancellation_reason')
       .eq('id', id)
       .maybeSingle();
     setPedido(p ?? null);
 
     if (p) {
-      const [end, cli] = await Promise.all([
+      const [end, cli, rev] = await Promise.all([
         supabase
           .from('addresses')
           .select('street, number, complement, city, state, access_notes')
           .eq('id', p.address_id)
           .maybeSingle(),
         supabase.from('profiles').select('full_name').eq('id', p.customer_id).maybeSingle(),
+        supabase.from('reviews').select('rating, comment').eq('order_id', p.id).maybeSingle(),
       ]);
       setEndereco(end.data ?? null);
       setCliente(cli.data ?? null);
+      setAvaliacao(rev.data ?? null);
     }
     setCarregando(false);
   }, [id]);
@@ -88,6 +96,28 @@ export default function PedidoProfissional({ params }: { params: Promise<{ id: s
     const { data } = await supabase.rpc('fn_check_out', { p_order_id: id });
     setEnviando(false);
     if (!data) setAviso('Não foi possível fazer o check-out agora.');
+    await carregar();
+  }
+
+  async function cancelar() {
+    if (!supabase) return;
+    if (!motivoCancelamento.trim()) {
+      setAviso('Conte rapidinho o motivo do cancelamento.');
+      return;
+    }
+    setEnviando(true);
+    setAviso(null);
+    const { data } = await supabase.rpc('fn_cancelar_pedido_profissional', {
+      p_order_id: id,
+      p_motivo: motivoCancelamento.trim(),
+    });
+    setEnviando(false);
+    if (!data) {
+      setAviso('Não foi possível cancelar esse serviço agora.');
+      return;
+    }
+    setMostrarCancelamento(false);
+    setMotivoCancelamento('');
     await carregar();
   }
 
@@ -166,11 +196,44 @@ export default function PedidoProfissional({ params }: { params: Promise<{ id: s
               Fazer check-out
             </button>
           )}
+          {['assigned', 'in_progress'].includes(pedido.status) && (
+            <button onClick={() => setMostrarCancelamento(true)} disabled={enviando} className="btn-contorno">
+              Cancelar serviço
+            </button>
+          )}
         </div>
       </div>
 
-      {cliente && (
+      {cliente && chatLiberado(pedido.status) && (
         <ChatPedido orderId={pedido.id} meuId={perfil.id} meuNome={perfil.full_name} outroNome={cliente.full_name} />
+      )}
+
+      <ResumoEncerramento status={pedido.status} motivo={pedido.cancellation_reason} avaliacao={avaliacao} />
+
+      {mostrarCancelamento && (
+        <Modal titulo="Cancelar serviço" onFechar={() => setMostrarCancelamento(false)}>
+          <p className="text-sm text-tinta-70">Por que você não vai poder atender esse serviço?</p>
+          <textarea
+            className="campo mt-3 min-h-[90px]"
+            placeholder="Escreva o motivo do cancelamento"
+            value={motivoCancelamento}
+            onChange={(e) => setMotivoCancelamento(e.target.value)}
+            aria-label="Motivo do cancelamento"
+          />
+          <p className="mt-2 text-xs text-tinta-50">O cliente vê essa justificativa no lugar do chat.</p>
+          <div className="mt-5 flex gap-2">
+            <button onClick={cancelar} disabled={enviando} className="btn-contorno">
+              {enviando ? 'Cancelando…' : 'Confirmar cancelamento'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMostrarCancelamento(false)}
+              className="text-sm font-semibold text-tinta-50"
+            >
+              Voltar
+            </button>
+          </div>
+        </Modal>
       )}
     </main>
   );

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { clienteComToken, tokenDaRequisicao } from '@/lib/supabase';
 import { partesDaData } from '@/lib/data';
+import { bairroDoCep } from '@/lib/viacep';
 
 export const runtime = 'nodejs';
 
@@ -66,6 +67,10 @@ export async function POST(req: Request) {
   }
 
   const endereco = body.endereco ?? {};
+  const cepLimpo = String(endereco.cep ?? '').replace(/\D/g, '');
+  // O bairro é o que o profissional vê no mapa: se o funil não trouxe (ViaCEP
+  // fora do ar naquele instante), busca de novo aqui em vez de gravar null.
+  const bairro = endereco.bairro || (await bairroDoCep(cepLimpo));
 
   await cliente.from('customers').upsert({ id: user.id }, { onConflict: 'id', ignoreDuplicates: true });
 
@@ -73,13 +78,13 @@ export async function POST(req: Request) {
     .from('addresses')
     .insert({
       customer_id: user.id,
-      zipcode: String(endereco.cep ?? '').replace(/\D/g, ''),
+      zipcode: cepLimpo,
       street: endereco.rua ?? '',
       number: endereco.numero ?? '',
       complement: endereco.complemento || null,
       city: endereco.cidade ?? '',
       state: (endereco.estado ?? '').slice(0, 2),
-      district: endereco.bairro || null,
+      district: bairro || null,
       home_type: endereco.homeType ?? 'APARTMENT',
       bedrooms: Number(endereco.bedrooms ?? 2),
       bathrooms: Number(endereco.bathrooms ?? 1),

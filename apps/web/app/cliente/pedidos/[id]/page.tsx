@@ -10,6 +10,11 @@ import { ChatPedido } from '@/components/ChatPedido';
 import { Modal } from '@/components/Modal';
 import { Contador } from '@/components/Contador';
 import { rotuloStatusPedido } from '@/lib/statusPedido';
+import {
+  ResumoEncerramento,
+  STATUS_CANCELADO,
+  chatLiberado,
+} from '@/components/ResumoEncerramento';
 
 interface Pedido {
   id: string;
@@ -22,6 +27,7 @@ interface Pedido {
   address_id: string;
   professional_id: string | null;
   cancellation_fee_cents: number;
+  cancellation_reason: string | null;
   addons: string[];
 }
 
@@ -36,8 +42,6 @@ interface Endereco {
   bathrooms: number;
   access_notes: string | null;
 }
-
-const STATUS_CANCELADO = ['cancelled_by_customer', 'cancelled_by_professional', 'no_show', 'refunded'];
 
 function mensagemNaoEditavel(status: string): string {
   if (STATUS_CANCELADO.includes(status)) {
@@ -59,13 +63,15 @@ export default function PedidoCliente({ params }: { params: Promise<{ id: string
   const [pedido, setPedido] = useState<Pedido | null>(null);
   const [endereco, setEndereco] = useState<Endereco | null>(null);
   const [profissional, setProfissional] = useState<{ full_name: string } | null>(null);
-  const [jaAvaliado, setJaAvaliado] = useState(false);
+  const [avaliacao, setAvaliacao] = useState<{ rating: number; comment: string | null } | null>(null);
   const [nota, setNota] = useState(5);
   const [comentario, setComentario] = useState('');
   const [carregando, setCarregando] = useState(true);
   const [enviando, setEnviando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
 
+  const [mostrarCancelamento, setMostrarCancelamento] = useState(false);
+  const [motivoCancelamento, setMotivoCancelamento] = useState('');
   const [mostrarDetalhes, setMostrarDetalhes] = useState(false);
   const [editando, setEditando] = useState(false);
   const [salvandoEdicao, setSalvandoEdicao] = useState(false);
@@ -84,7 +90,7 @@ export default function PedidoCliente({ params }: { params: Promise<{ id: string
     const { data: p } = await supabase
       .from('orders')
       .select(
-        'id, code, service, scheduled_at, minutes, status, price_cents, address_id, professional_id, cancellation_fee_cents, addons',
+        'id, code, service, scheduled_at, minutes, status, price_cents, address_id, professional_id, cancellation_fee_cents, cancellation_reason, addons',
       )
       .eq('id', id)
       .maybeSingle();
@@ -100,11 +106,11 @@ export default function PedidoCliente({ params }: { params: Promise<{ id: string
         p.professional_id
           ? supabase.from('profiles').select('full_name').eq('id', p.professional_id).maybeSingle()
           : Promise.resolve({ data: null }),
-        supabase.from('reviews').select('id').eq('order_id', p.id).maybeSingle(),
+        supabase.from('reviews').select('rating, comment').eq('order_id', p.id).maybeSingle(),
       ]);
       setEndereco(end.data ?? null);
       setProfissional(prof.data ?? null);
-      setJaAvaliado(Boolean(rev.data));
+      setAvaliacao(rev.data ?? null);
     }
     setCarregando(false);
   }, [id]);
@@ -115,14 +121,23 @@ export default function PedidoCliente({ params }: { params: Promise<{ id: string
 
   async function cancelar() {
     if (!supabase) return;
+    if (!motivoCancelamento.trim()) {
+      setAviso('Conte rapidinho o motivo do cancelamento.');
+      return;
+    }
     setEnviando(true);
     setAviso(null);
-    const { data } = await supabase.rpc('fn_cancelar_pedido', { p_order_id: id });
+    const { data } = await supabase.rpc('fn_cancelar_pedido', {
+      p_order_id: id,
+      p_motivo: motivoCancelamento.trim(),
+    });
     setEnviando(false);
     if (!data) {
       setAviso('Não foi possível cancelar esse pedido agora.');
       return;
     }
+    setMostrarCancelamento(false);
+    setMotivoCancelamento('');
     await carregar();
   }
 
@@ -143,7 +158,7 @@ export default function PedidoCliente({ params }: { params: Promise<{ id: string
       setAviso('Não foi possível enviar sua avaliação.');
       return;
     }
-    setJaAvaliado(true);
+    setAvaliacao({ rating: nota, comment: comentario || null });
   }
 
   function abrirDetalhes() {
@@ -211,7 +226,7 @@ export default function PedidoCliente({ params }: { params: Promise<{ id: string
   const servico = porCodigo(pedido.service as never);
   const podeCancelar = ['searching_professional', 'assigned'].includes(pedido.status);
   const podeEditar = pedido.status === 'searching_professional';
-  const podeAvaliar = pedido.status === 'completed' && !jaAvaliado;
+  const podeAvaliar = pedido.status === 'completed' && !avaliacao;
   const opcionaisDoServico = servico ? OPCIONAIS.filter((o) => o.servicos.includes(servico.code)) : [];
   const nomesOpcionaisAtuais = OPCIONAIS.filter((o) => pedido.addons?.includes(o.code)).map((o) => o.nome);
 
@@ -276,12 +291,12 @@ export default function PedidoCliente({ params }: { params: Promise<{ id: string
       )}
 
       {podeCancelar && (
-        <button onClick={cancelar} disabled={enviando} className="btn-contorno w-fit">
+        <button onClick={() => setMostrarCancelamento(true)} disabled={enviando} className="btn-contorno w-fit">
           Cancelar pedido
         </button>
       )}
 
-      {pedido.professional_id && profissional && (
+      {pedido.professional_id && profissional && chatLiberado(pedido.status) && (
         <ChatPedido
           orderId={pedido.id}
           meuId={perfil.id}
@@ -289,6 +304,8 @@ export default function PedidoCliente({ params }: { params: Promise<{ id: string
           outroNome={profissional.full_name}
         />
       )}
+
+      <ResumoEncerramento status={pedido.status} motivo={pedido.cancellation_reason} avaliacao={avaliacao} />
 
       {podeAvaliar && (
         <div className="cartao p-6">
@@ -322,10 +339,35 @@ export default function PedidoCliente({ params }: { params: Promise<{ id: string
         </div>
       )}
 
-      {jaAvaliado && (
-        <p className="rounded-lg bg-tinta-5 px-4 py-3 text-sm font-semibold text-tinta-70">
-          Você já avaliou esse serviço. Obrigado!
-        </p>
+
+      {mostrarCancelamento && (
+        <Modal titulo="Cancelar pedido" onFechar={() => setMostrarCancelamento(false)}>
+          <p className="text-sm text-tinta-70">Por que você quer cancelar esse serviço?</p>
+          <textarea
+            className="campo mt-3 min-h-[90px]"
+            placeholder="Escreva o motivo do cancelamento"
+            value={motivoCancelamento}
+            onChange={(e) => setMotivoCancelamento(e.target.value)}
+            aria-label="Motivo do cancelamento"
+          />
+          {pedido.status === 'assigned' && (
+            <p className="mt-2 text-xs text-tinta-50">
+              Cancelamentos com menos de 24 horas de antecedência têm taxa de 20%.
+            </p>
+          )}
+          <div className="mt-5 flex gap-2">
+            <button onClick={cancelar} disabled={enviando} className="btn-contorno">
+              {enviando ? 'Cancelando…' : 'Confirmar cancelamento'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMostrarCancelamento(false)}
+              className="text-sm font-semibold text-tinta-50"
+            >
+              Voltar
+            </button>
+          </div>
+        </Modal>
       )}
 
       {mostrarDetalhes && endereco && (

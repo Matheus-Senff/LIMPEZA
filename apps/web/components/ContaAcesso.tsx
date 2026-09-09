@@ -115,7 +115,7 @@ export function ContaAcesso({ email }: { email: string }) {
           <p className="rotulo mb-1">Senha</p>
           {!editandoSenha ? (
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-sm text-tinta-50">Por segurança, a troca só vale depois de confirmada por e-mail.</p>
+              <p className="text-sm font-semibold tracking-[0.2em] text-tinta-70">**********</p>
               <button onClick={() => setEditandoSenha(true)} className="text-xs font-semibold text-azul-600">
                 Alterar senha
               </button>

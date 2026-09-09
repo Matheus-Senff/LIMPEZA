@@ -1,10 +1,12 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Logo } from './Marca';
 import { supabase } from '@/lib/supabase';
 import { AlternarTema } from './AlternarTema';
+import { buscarPapeis, buscarPerfil } from '@/lib/perfil';
 
 const NAV: Record<'customer' | 'professional' | 'admin', { href: string; rotulo: string }[]> = {
   customer: [
@@ -22,10 +24,27 @@ const NAV: Record<'customer' | 'professional' | 'admin', { href: string; rotulo:
 
 export function CabecalhoApp({ papel }: { papel: 'customer' | 'professional' | 'admin' }) {
   const router = useRouter();
+  const [temAmbos, setTemAmbos] = useState(false);
+
+  // "Trocar" só existe pra quem tem cadastro de cliente E de profissional —
+  // quem é só um dos dois não tem pra onde alternar.
+  useEffect(() => {
+    (async () => {
+      if (papel === 'admin') return;
+      const perfil = await buscarPerfil();
+      if (!perfil) return;
+      const papeis = await buscarPapeis(perfil.id);
+      setTemAmbos(papeis.cliente && papeis.profissional);
+    })();
+  }, [papel]);
 
   async function sair() {
     await supabase?.auth.signOut();
     router.replace('/');
+  }
+
+  function trocar() {
+    router.replace(papel === 'customer' ? '/profissional' : '/cliente');
   }
 
   return (
@@ -41,8 +60,19 @@ export function CabecalhoApp({ papel }: { papel: 'customer' | 'professional' | '
             ))}
           </nav>
         </div>
-        <div className="flex items-center gap-3">
-          <button onClick={sair} className="text-sm font-semibold text-tinta-50 hover:text-tinta">
+        <div className="flex h-10 items-center gap-2">
+          {temAmbos && (
+            <button
+              onClick={trocar}
+              className="flex h-9 items-center rounded-full border border-tinta-20 px-3 text-sm font-semibold leading-none text-tinta-70 transition hover:border-tinta-30 hover:text-tinta"
+            >
+              Trocar
+            </button>
+          )}
+          <button
+            onClick={sair}
+            className="flex h-9 items-center rounded-full px-3 text-sm font-semibold leading-none text-tinta-50 transition hover:text-tinta"
+          >
             Sair
           </button>
           <AlternarTema />
