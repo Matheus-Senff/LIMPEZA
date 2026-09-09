@@ -54,7 +54,11 @@ export async function POST(req: Request) {
   }
 
   const orderId = sessao.metadata?.order_id;
-  const metodo = sessao.metadata?.metodo === 'pix' ? 'pix' : 'credit_card';
+  // Com os dois métodos oferecidos juntos na Stripe, quem decide de fato é
+  // o cliente na hora — a preferência gravada em metadata não é confiável
+  // pra saber o que foi realmente usado. Pix sempre confirma pelo evento
+  // assíncrono; cartão confirma direto no completed.
+  const metodo = evento.type === 'checkout.session.async_payment_succeeded' ? 'pix' : 'credit_card';
   if (!orderId) {
     return NextResponse.json({ erro: 'sem_order_id_no_metadata' }, { status: 400 });
   }

@@ -147,25 +147,37 @@ export async function POST(req: Request) {
     // que o webhook confirmar o pagamento — ver /api/webhooks/stripe.
     const origem = new URL(req.url).origin;
     const servico = porCodigo(cotacao.service as never);
-    try {
-      const sessao = await stripe.checkout.sessions.create({
-        mode: 'payment',
-        payment_method_types: metodo === 'pix' ? ['pix'] : ['card'],
-        customer_email: user.email ?? undefined,
-        line_items: [
-          {
-            quantity: 1,
-            price_data: {
-              currency: 'brl',
-              unit_amount: cotacao.price_cents,
-              product_data: { name: `Plano Limpo — ${servico?.nome ?? cotacao.service}` },
-            },
+    const paramsBase = {
+      mode: 'payment' as const,
+      customer_email: user.email ?? undefined,
+      line_items: [
+        {
+          quantity: 1,
+          price_data: {
+            currency: 'brl',
+            unit_amount: cotacao.price_cents,
+            product_data: { name: `Plano Limpo — ${servico?.nome ?? cotacao.service}` },
           },
-        ],
-        metadata: { order_id: pedidoSalvo.id, metodo },
-        success_url: `${origem}/cliente/pedidos/${pedidoSalvo.id}?pago=processando`,
-        cancel_url: `${origem}/cliente/pedidos/${pedidoSalvo.id}?pagamento=cancelado`,
-      });
+        },
+      ],
+      metadata: { order_id: pedidoSalvo.id, metodo },
+      success_url: `${origem}/cliente/pedidos/${pedidoSalvo.id}?pago=processando`,
+      cancel_url: `${origem}/cliente/pedidos/${pedidoSalvo.id}?pagamento=cancelado`,
+    };
+    try {
+      // Pix, débito e crédito juntos — quem escolhe de fato é o cliente na
+      // própria tela da Stripe (nosso rádio de Pix/Cartão vira só uma
+      // preferência inicial, não uma restrição).
+      let sessao;
+      try {
+        sessao = await stripe.checkout.sessions.create({ ...paramsBase, payment_method_types: ['card', 'pix'] });
+      } catch {
+        // Pix ainda não habilitado nas configurações da conta Stripe: cai
+        // pra cartão em vez de quebrar o pagamento inteiro. Assim que o Pix
+        // for ligado no dashboard, volta a aparecer sozinho, sem precisar
+        // mexer em código.
+        sessao = await stripe.checkout.sessions.create({ ...paramsBase, payment_method_types: ['card'] });
+      }
 
       if (!sessao.url) throw new Error('sessão sem url de checkout');
 
