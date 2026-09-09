@@ -94,10 +94,7 @@ export default function Termos() {
           </div>
         </div>
 
-        <p className="mt-6 text-center text-xs text-tinta-30">
-          Este é um documento-modelo; recomenda-se revisão por profissional jurídico antes do uso comercial.
-        </p>
-        <p className="mt-3 text-center text-sm text-tinta-50">
+        <p className="mt-6 text-center text-sm text-tinta-50">
           <Link href="/" className="font-semibold text-tinta">
             Voltar
           </Link>

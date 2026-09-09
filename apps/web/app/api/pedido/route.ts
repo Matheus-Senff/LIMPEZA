@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { clienteComToken, clienteServico, tokenDaRequisicao } from '@/lib/supabase';
 import { partesDaData } from '@/lib/data';
-import { bairroDoCep } from '@/lib/viacep';
 import { stripe, stripeConfigurado, criarSessaoCheckout } from '@/lib/stripe';
 import { buscarPorCodigo } from '@/lib/catalogoDb';
 
@@ -75,15 +74,30 @@ export async function POST(req: Request) {
     return NextResponse.json({ erro: 'sem_horario' }, { status: 422 });
   }
 
+  // O endereço é sempre um já salvo no perfil — o funil não deixa mais
+  // digitar rua/número/complemento na hora do pedido (evita duplicar
+  // endereço em "endereços salvos" a cada pedido feito).
   const endereco = body.endereco ?? {};
-  const cepLimpo = String(endereco.cep ?? '').replace(/\D/g, '');
-  // O bairro é o que o profissional vê no mapa: se o funil não trouxe (ViaCEP
-  // fora do ar naquele instante), busca de novo aqui em vez de gravar null.
-  const bairro = endereco.bairro || (await bairroDoCep(cepLimpo));
+  const enderecoId = typeof body.enderecoId === 'string' ? body.enderecoId : null;
+  if (!enderecoId) {
+    return NextResponse.json({ erro: 'sem_endereco', mensagem: 'Escolha um endereço salvo para o serviço.' }, { status: 422 });
+  }
+
+  const { data: enderecoSalvo, error: erroEndereco } = await cliente
+    .from('addresses')
+    .select('id, zipcode')
+    .eq('id', enderecoId)
+    .eq('customer_id', user.id)
+    .eq('active', true)
+    .maybeSingle();
+
+  if (erroEndereco || !enderecoSalvo) {
+    return NextResponse.json({ erro: 'endereco_invalido', mensagem: 'Esse endereço não foi encontrado.' }, { status: 422 });
+  }
 
   // Preço é calculado por região: o endereço do serviço tem que ser o mesmo
   // CEP que gerou a cotação.
-  if (cotacao.zipcode && cepLimpo !== cotacao.zipcode) {
+  if (cotacao.zipcode && enderecoSalvo.zipcode !== cotacao.zipcode) {
     return NextResponse.json(
       {
         erro: 'cep_divergente',
@@ -97,28 +111,17 @@ export async function POST(req: Request) {
   // cliente (só assim `credit_cents` fica fora do alcance do próprio usuário).
   await cliente.rpc('fn_registrar_cliente');
 
-  const { data: enderecoSalvo, error: erroEndereco } = await cliente
+  // Tipo de lar/cômodos/instrução de acesso são específicos deste pedido —
+  // atualiza no próprio endereço salvo (mesmo padrão de fn_editar_pedido).
+  await cliente
     .from('addresses')
-    .insert({
-      customer_id: user.id,
-      zipcode: cepLimpo,
-      street: endereco.rua ?? '',
-      number: endereco.numero ?? '',
-      complement: endereco.complemento || null,
-      city: endereco.cidade ?? '',
-      state: (endereco.estado ?? '').slice(0, 2),
-      district: bairro || null,
+    .update({
       home_type: endereco.homeType ?? 'APARTMENT',
       bedrooms: Number(endereco.bedrooms ?? 2),
       bathrooms: Number(endereco.bathrooms ?? 1),
       access_notes: endereco.acesso || null,
     })
-    .select('id')
-    .single();
-
-  if (erroEndereco || !enderecoSalvo) {
-    return NextResponse.json({ erro: 'falha_endereco', mensagem: erroEndereco?.message }, { status: 422 });
-  }
+    .eq('id', enderecoId);
 
   const { data: pedidoSalvo, error: erroPedido } = await cliente
     .from('orders')

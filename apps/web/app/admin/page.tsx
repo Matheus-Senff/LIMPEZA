@@ -36,6 +36,7 @@ export default function AdminVisaoGeral() {
   const [m, setM] = useState<Metricas | null>(null);
   const [recentes, setRecentes] = useState<PedidoRecente[]>([]);
   const [carregando, setCarregando] = useState(true);
+  const [erroRecentes, setErroRecentes] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -79,6 +80,7 @@ export default function AdminVisaoGeral() {
         chamadosAbertos: chamados.count ?? 0,
         faturamentoTotal: (faturamento.data ?? []).reduce((soma, p) => soma + p.price_cents, 0),
       });
+      if (pedidos.error) setErroRecentes(pedidos.error.message);
       setRecentes(pedidos.data ?? []);
       setCarregando(false);
     })();
@@ -126,6 +128,7 @@ export default function AdminVisaoGeral() {
               Ver todos →
             </Link>
           </div>
+          {erroRecentes && <p className="mb-4 text-sm font-semibold text-tinta">Erro ao carregar: {erroRecentes}</p>}
           {carregando ? (
             <p className="text-sm text-tinta-50">Carregando…</p>
           ) : recentes.length === 0 ? (

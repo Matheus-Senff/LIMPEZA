@@ -61,13 +61,6 @@ export function PainelSuporte({ meuId }: { meuId: string }) {
     await carregar();
   }
 
-  async function fecharChamado(id: string) {
-    if (!supabase) return;
-    await supabase.from('support_tickets').update({ status: 'closed' }).eq('id', id);
-    setChamadoAberto(null);
-    await carregar();
-  }
-
   return (
     <section className="cartao p-6">
       <div className="mb-4 flex items-center justify-between gap-3">
@@ -129,9 +122,9 @@ export function PainelSuporte({ meuId }: { meuId: string }) {
         <Modal titulo={chamadoAberto.subject} onFechar={() => setChamadoAberto(null)}>
           <ChamadoSuporte ticketId={chamadoAberto.id} meuId={meuId} />
           {chamadoAberto.status !== 'closed' && (
-            <button onClick={() => fecharChamado(chamadoAberto.id)} className="mt-4 text-xs font-semibold text-tinta-50 hover:text-tinta">
-              Marcar como resolvido e fechar chamado
-            </button>
+            <p className="mt-4 text-xs text-tinta-50">
+              Só a administração pode marcar este chamado como resolvido.
+            </p>
           )}
         </Modal>
       )}
