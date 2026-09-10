@@ -239,6 +239,31 @@ export default function ProfissionalHome() {
         )}
         {carregando ? (
           <p className="text-sm text-tinta-50">Carregando…</p>
+        ) : visao === 'mapa' ? (
+          <div className="flex flex-col gap-3">
+            <MapaOfertas
+              ofertas={ofertas
+                .filter((o) => o.detalhes && o.orders)
+                .map(
+                  (o): OfertaNoMapa => ({
+                    id: o.id,
+                    order_id: o.order_id,
+                    cidade: o.detalhes!.city,
+                    rotulo: porCodigo(o.orders!.service as never)?.nome ?? o.orders!.service,
+                    valor: reais(o.orders!.payout_cents),
+                    bairroLat: o.detalhes!.bairroLat,
+                    bairroLng: o.detalhes!.bairroLng,
+                  }),
+                )}
+              onSelecionar={(id) => setDetalheAberto(ofertas.find((o) => o.id === id) ?? null)}
+            />
+            {ofertas.length === 0 && (
+              <p className="text-center text-sm text-tinta-50">
+                Nenhuma oferta no momento — o mapa fica disponível pra você acompanhar sua região a
+                qualquer hora.
+              </p>
+            )}
+          </div>
         ) : ofertas.length === 0 ? (
           <div className="cartao p-8 text-center">
             <p className="font-semibold">Nenhuma oferta no momento</p>
@@ -247,23 +272,6 @@ export default function ProfissionalHome() {
               cidades — a lista se atualiza a cada poucos minutos.
             </p>
           </div>
-        ) : visao === 'mapa' ? (
-          <MapaOfertas
-            ofertas={ofertas
-              .filter((o) => o.detalhes && o.orders)
-              .map(
-                (o): OfertaNoMapa => ({
-                  id: o.id,
-                  order_id: o.order_id,
-                  cidade: o.detalhes!.city,
-                  rotulo: porCodigo(o.orders!.service as never)?.nome ?? o.orders!.service,
-                  valor: reais(o.orders!.payout_cents),
-                  bairroLat: o.detalhes!.bairroLat,
-                  bairroLng: o.detalhes!.bairroLng,
-                }),
-              )}
-            onSelecionar={(id) => setDetalheAberto(ofertas.find((o) => o.id === id) ?? null)}
-          />
         ) : (
           <ul className="cartao flex flex-col divide-y divide-tinta-10 p-2">
             {ofertas.map((o) => {
