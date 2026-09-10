@@ -548,7 +548,7 @@ export function Funil({
                           ativo
                             ? 'border-azul-600 bg-azul-600 text-white'
                             : 'border-tinta-20 hover:border-azul-200'
-                        } ${d.hoje && !ativo ? 'border-azul-100 bg-azul-50' : ''}`}
+                        } ${d.hoje && !ativo ? 'border-azul-100 bg-azul-50 text-azul-700' : ''}`}
                       >
                         <span className="text-[11px] font-bold uppercase">{d.diaSemana}</span>
                         <span className="text-xl font-extrabold numero">{d.diaMes}</span>
@@ -698,7 +698,7 @@ export function Funil({
                 <label
                   key={m.code}
                   className={`flex cursor-pointer items-start gap-3 rounded-xl border-2 p-4 transition ${
-                    metodo === m.code ? 'border-azul-600 bg-azul-50' : 'border-tinta-20 hover:border-azul-200'
+                    metodo === m.code ? 'border-azul-600 bg-azul-50 text-azul-700' : 'border-tinta-20 hover:border-azul-200'
                   }`}
                 >
                   <input

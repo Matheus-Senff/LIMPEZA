@@ -543,7 +543,7 @@ export default function PedidoCliente({ params }: { params: Promise<{ id: string
                         <label
                           key={o.code}
                           className={`flex cursor-pointer items-center gap-2 rounded-xl border-2 px-3 py-2 text-sm transition ${
-                            ativo ? 'border-azul-600 bg-azul-50' : 'border-tinta-20 hover:border-azul-200'
+                            ativo ? 'border-azul-600 bg-azul-50 text-azul-700' : 'border-tinta-20 hover:border-azul-200'
                           }`}
                         >
                           <input
