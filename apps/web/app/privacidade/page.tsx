@@ -2,7 +2,7 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { Logo } from '@/components/Marca';
 
-export const metadata: Metadata = { title: 'Política de privacidade' };
+export const metadata: Metadata = { title: 'Plano Limpo' };
 
 export default function Privacidade() {
   return (
