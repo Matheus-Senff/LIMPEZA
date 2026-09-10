@@ -115,10 +115,7 @@ export default function ContaProfissional() {
 
       <section className="cartao p-6">
         <h2 className="mb-1 text-lg font-bold">Onde você recebe</h2>
-        <p className="mb-4 text-sm text-tinta-50">
-          Cadastre sua chave Pix — é pra onde a administração transfere o valor dos serviços que
-          você concluir.
-        </p>
+        <p className="mb-4 text-sm text-tinta-50">Cadastre sua chave Pix</p>
         <form onSubmit={salvarPix} className="flex flex-col gap-3">
           <input
             className="campo"
