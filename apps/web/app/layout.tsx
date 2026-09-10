@@ -10,10 +10,7 @@ const figtree = Figtree({
 });
 
 export const metadata: Metadata = {
-  title: {
-    default: 'Plano Limpo — faxina, passadoria e serviços domésticos',
-    template: '%s · Plano Limpo',
-  },
+  title: 'Plano Limpo',
   description:
     'Agende faxina, limpeza pesada, passadoria e montagem de móveis com profissionais credenciados e segurados. Preço transparente, do primeiro passo ao pagamento.',
   metadataBase: new URL('https://plano-limpo.vercel.app'),

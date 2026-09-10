@@ -78,7 +78,7 @@ export function MapaOfertas({
       const L = (await import('leaflet')).default;
       if (!ativo || !divRef.current || mapaRef.current) return;
 
-      const mapa = L.map(divRef.current, { scrollWheelZoom: false }).setView(
+      const mapa = L.map(divRef.current, { scrollWheelZoom: true }).setView(
         [-26.18, -49.84],
         11,
       );
@@ -125,11 +125,15 @@ export function MapaOfertas({
     // relative + z-0 isolam o mapa num contexto de empilhamento próprio:
     // os controles internos do Leaflet (zoom, atribuição) usam z-index
     // até 1000 e, sem isso, vazam por cima de modais da página.
-    <div className="relative z-0 overflow-hidden rounded-card border border-tinta-10">
-      <div ref={divRef} style={{ height: 360, width: '100%' }} />
-      <p className="bg-tinta-5 px-4 py-2 text-xs text-tinta-50">
-        O pino mostra a região da cidade, não o endereço exato — isso só aparece depois de aceitar.
-      </p>
+    <div className="relative left-1/2 -mx-[50vw] w-screen">
+      <div className="mx-auto max-w-[96rem] px-5">
+        <div className="relative z-0 overflow-hidden rounded-card border border-tinta-10">
+          <div ref={divRef} style={{ height: 540, width: '100%' }} />
+          <p className="bg-tinta-5 px-4 py-2 text-xs text-tinta-50">
+            O pino mostra a região da cidade, não o endereço exato — isso só aparece depois de aceitar.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

@@ -10,7 +10,12 @@ interface Chamado {
   id: string;
   subject: string;
   status: StatusChamado;
+  created_at: string;
   updated_at: string;
+}
+
+function dataPorExtenso(iso: string): string {
+  return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
 /** Central de suporte do cliente/profissional: abrir chamado e acompanhar os próprios. */
@@ -27,7 +32,7 @@ export function PainelSuporte({ meuId }: { meuId: string }) {
     if (!supabase) return;
     const { data } = await supabase
       .from('support_tickets')
-      .select('id, subject, status, updated_at')
+      .select('id, subject, status, created_at, updated_at')
       .order('updated_at', { ascending: false });
     setChamados(data ?? []);
     setCarregando(false);
@@ -119,13 +124,15 @@ export function PainelSuporte({ meuId }: { meuId: string }) {
       )}
 
       {chamadoAberto && (
-        <Modal titulo={chamadoAberto.subject} onFechar={() => setChamadoAberto(null)}>
+        <Modal titulo={chamadoAberto.subject} onFechar={() => setChamadoAberto(null)} extraLargo>
+          <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-tinta-10 pb-4 text-xs text-tinta-50">
+            <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${COR_STATUS_CHAMADO[chamadoAberto.status]}`}>
+              {ROTULO_STATUS_CHAMADO[chamadoAberto.status]}
+            </span>
+            <span>Aberto em {dataPorExtenso(chamadoAberto.created_at)}</span>
+            <span>Última atualização {dataPorExtenso(chamadoAberto.updated_at)}</span>
+          </div>
           <ChamadoSuporte ticketId={chamadoAberto.id} meuId={meuId} />
-          {chamadoAberto.status !== 'closed' && (
-            <p className="mt-4 text-xs text-tinta-50">
-              Só a administração pode marcar este chamado como resolvido.
-            </p>
-          )}
         </Modal>
       )}
     </section>

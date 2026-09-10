@@ -56,6 +56,12 @@ export async function criarSessaoCheckout(params: {
     payment_method_options: {
       card: { capture_method: 'manual' as const, setup_future_usage: 'off_session' as const },
     },
+    // O nome público da conta Stripe de teste está cadastrado como "Área
+    // restrita de Plano Limpo" (só pra diferenciar de produção no
+    // Dashboard) — sem isso aparece pro cliente no topo do Checkout. Isso
+    // só troca o título da página; os textos de consentimento (Link, etc.)
+    // usam o nome legal da conta e só mudam trocando o cadastro na Stripe.
+    branding_settings: { display_name: 'Plano Limpo' },
     metadata: { order_id: params.orderId, metodo: params.metodo },
     success_url: `${params.origem}/cliente/pedidos/${params.orderId}?pago=processando`,
     cancel_url: `${params.origem}/cliente/pedidos/${params.orderId}?pagamento=cancelado`,
