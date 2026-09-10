@@ -379,11 +379,13 @@ export function Funil({
                         disabled={carregando}
                         onClick={() => escolherEnderecoEVerPreco(e)}
                         className={`rounded-xl border-2 px-4 py-3 text-left text-sm font-semibold transition ${
-                          enderecoSalvoId === e.id ? 'border-azul-600 bg-azul-50' : 'border-tinta-20 hover:border-tinta-50'
+                          enderecoSalvoId === e.id
+                            ? 'border-azul-600 bg-azul-50 text-azul-700'
+                            : 'border-tinta-20 hover:border-tinta-50'
                         }`}
                       >
                         <span className="block">{e.label ?? `${e.street}, ${e.number}`}</span>
-                        <span className="block font-normal text-tinta-50">
+                        <span className={`block font-normal ${enderecoSalvoId === e.id ? 'text-azul-700/70' : 'text-tinta-50'}`}>
                           {e.district ? `${e.district} · ` : ''}
                           {e.city}/{e.state} · CEP {e.zipcode}
                         </span>
@@ -417,7 +419,7 @@ export function Funil({
                     <label
                       key={o.code}
                       className={`flex cursor-pointer items-center justify-between gap-3 rounded-xl border-2 px-4 py-3 text-sm transition ${
-                        ativo ? 'border-azul-600 bg-azul-50' : 'border-tinta-20 hover:border-azul-200'
+                        ativo ? 'border-azul-600 bg-azul-50 text-azul-700' : 'border-tinta-20 hover:border-azul-200'
                       }`}
                     >
                       <span className="flex items-center gap-3">
@@ -502,7 +504,7 @@ export function Funil({
                         key={p.code}
                         onClick={() => setFrequencia(p.code)}
                         className={`relative flex flex-col gap-2 rounded-xl border-2 p-4 text-left transition ${
-                          ativo ? 'border-azul-600 bg-azul-50' : 'border-tinta-20 hover:border-azul-200'
+                          ativo ? 'border-azul-600 bg-azul-50 text-azul-700' : 'border-tinta-20 hover:border-azul-200'
                         }`}
                       >
                         {economia > 0 && (
@@ -684,14 +686,12 @@ export function Funil({
                     titulo: 'Pix',
                     texto: STRIPE_ATIVA
                       ? 'Você escaneia o QR code na tela seguinte. O pedido entra na busca de profissional assim que o Pix cair.'
-                      : 'Pagamento no momento do pedido. A vaga é reservada na hora.',
+                      : '',
                   },
                   {
                     code: 'credit_card' as const,
                     titulo: 'Cartão de crédito ou débito',
-                    texto: STRIPE_ATIVA
-                      ? 'Cobrado no momento da confirmação do pedido.'
-                      : 'Autorizamos agora e só cobramos depois que o serviço for concluído.',
+                    texto: STRIPE_ATIVA ? 'Cobrado no momento da confirmação do pedido.' : '',
                   },
                 ]
               ).map((m) => (
@@ -710,16 +710,18 @@ export function Funil({
                   />
                   <span>
                     <span className="block font-bold">{m.titulo}</span>
-                    <span className="block text-sm text-tinta-50">{m.texto}</span>
+                    {m.texto && <span className="block text-sm text-tinta-50">{m.texto}</span>}
                   </span>
                 </label>
               ))}
 
-              <div className="rounded-xl bg-tinta-5 px-4 py-3 text-xs font-semibold text-tinta-70">
-                {STRIPE_ATIVA
-                  ? 'Isso aqui é só uma preferência — na tela de pagamento da Stripe você pode escolher Pix ou cartão à vontade. Processado com segurança pela Stripe; o pedido entra na busca de profissional assim que o pagamento for confirmado.'
-                  : 'Pagamento simulado nesta versão: nenhuma cobrança real é feita. O pedido é registrado de verdade e segue para a busca de profissional.'}
-              </div>
+              {STRIPE_ATIVA && (
+                <div className="rounded-xl bg-tinta-5 px-4 py-3 text-xs font-semibold text-tinta-70">
+                  Isso aqui é só uma preferência — na tela de pagamento da Stripe você pode escolher Pix ou cartão à
+                  vontade. Processado com segurança pela Stripe; o pedido entra na busca de profissional assim que o
+                  pagamento for confirmado.
+                </div>
+              )}
 
               {erroFinal && (
                 <p className="rounded-lg border border-tinta-20 bg-tinta-5 px-4 py-3 text-sm font-semibold text-tinta">

@@ -7,12 +7,15 @@ export function Modal({
   onFechar,
   children,
   largo,
+  extraLargo,
 }: {
   titulo: string;
   onFechar: () => void;
   children: React.ReactNode;
   /** ~40% mais largo que o padrão — pra conteúdo com mais informação, tipo o passo a passo de uma oferta. */
   largo?: boolean;
+  /** ~70% mais largo que o padrão — pra conteúdo bem mais denso, tipo um chamado de suporte com histórico. */
+  extraLargo?: boolean;
 }) {
   useEffect(() => {
     function aoTeclar(e: KeyboardEvent) {
@@ -26,7 +29,7 @@ export function Modal({
     <div className="fixed inset-0 z-[1200] grid place-items-center bg-tinta/40 p-4" onClick={onFechar}>
       <div
         className={`max-h-[90vh] w-full overflow-y-auto rounded-card bg-superficie p-6 shadow-cartao ${
-          largo ? 'max-w-[44.8rem]' : 'max-w-lg'
+          extraLargo ? 'max-w-[54.4rem]' : largo ? 'max-w-[44.8rem]' : 'max-w-lg'
         }`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
