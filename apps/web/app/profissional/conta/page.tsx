@@ -68,10 +68,7 @@ export default function ContaProfissional() {
     if (!supabase) return;
     setSalvandoPix(true);
     setAvisoPix(null);
-    const { error } = await supabase
-      .from('professionals')
-      .update({ pix_key: pixKey.trim() || null })
-      .eq('id', perfil.id);
+    const { error } = await supabase.rpc('fn_atualizar_pix_profissional', { p_pix_key: pixKey });
     setSalvandoPix(false);
     setAvisoPix(error ? 'Não foi possível salvar.' : 'Chave Pix atualizada.');
   }
