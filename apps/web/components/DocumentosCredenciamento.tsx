@@ -28,6 +28,7 @@ export function DocumentosCredenciamento({
   const [aviso, setAviso] = useState('');
   const [confirmando, setConfirmando] = useState(false);
   const [carregando, setCarregando] = useState(true);
+  const [expandido, setExpandido] = useState(status !== 'approved');
 
   async function carregar() {
     if (!supabase) {
@@ -79,9 +80,37 @@ export function DocumentosCredenciamento({
 
   if (carregando) return null;
 
+  if (status === 'approved' && !expandido) {
+    return (
+      <section className="cartao flex flex-wrap items-center justify-between gap-3 p-6">
+        <div className="flex items-center gap-3">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-verde-50 text-verde-700">
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M5 13l4 4L19 7" />
+            </svg>
+          </span>
+          <div>
+            <p className="font-bold">Credenciamento aprovado</p>
+            <p className="text-xs text-tinta-50">Documentos enviados e revisados pela administração.</p>
+          </div>
+        </div>
+        <button onClick={() => setExpandido(true)} className="btn-contorno !px-3 !py-1.5 !text-[11px]">
+          Ver documentos
+        </button>
+      </section>
+    );
+  }
+
   return (
     <section className="cartao p-6">
-      <h2 className="mb-1 text-lg font-bold">Documentos para credenciamento</h2>
+      <div className="mb-1 flex items-center justify-between gap-3">
+        <h2 className="text-lg font-bold">Documentos para credenciamento</h2>
+        {status === 'approved' && (
+          <button onClick={() => setExpandido(false)} className="text-xs font-bold text-tinta-50 underline">
+            Minimizar
+          </button>
+        )}
+      </div>
       <p className="mb-5 text-sm text-tinta-50">
         {status === 'approved'
           ? 'Seu credenciamento já foi aprovado.'

@@ -17,8 +17,10 @@ export const runtime = 'nodejs';
  * Pix é assíncrono: `checkout.session.completed` pode chegar com o
  * pagamento ainda `unpaid` (aguardando o cliente pagar o QR code) — nesse
  * caso o pagamento de verdade chega depois em
- * `checkout.session.async_payment_succeeded`. Cartão normalmente já vem
- * `paid` no `completed`. Os dois eventos passam pelo mesmo caminho; a RPC
+ * `checkout.session.async_payment_succeeded`. Cartão fica em autorização
+ * (capture_method manual): a sessão nunca chega a `payment_status: 'paid'`
+ * sozinha — o PaymentIntent em `requires_capture` já é o sinal de que o
+ * dinheiro está reservado. Os eventos passam pelo mesmo caminho; a RPC
  * garante que só o primeiro que chegar com o pedido ainda 'pending_payment'
  * tem efeito.
  */
@@ -48,7 +50,21 @@ export async function POST(req: Request) {
   }
 
   const sessao = evento.data.object as Stripe.Checkout.Session;
-  if (sessao.payment_status !== 'paid') {
+  const referenciaIntent =
+    typeof sessao.payment_intent === 'string' ? sessao.payment_intent : sessao.payment_intent?.id;
+
+  let confirmadoNaStripe = sessao.payment_status === 'paid';
+  if (!confirmadoNaStripe && evento.type === 'checkout.session.completed' && referenciaIntent) {
+    // Cartão em autorização (capture_method: 'manual', ver criarSessaoCheckout):
+    // a Stripe mantém payment_status da sessão como 'unpaid' até a captura de
+    // fato acontecer — o que só ocorre no check-out do profissional, bem
+    // depois. `requires_capture` já significa que o dinheiro está reservado
+    // no limite do cliente; sem checar isso aqui, o pedido nunca sairia de
+    // 'pending_payment' num pagamento de cartão.
+    const intent = await stripe.paymentIntents.retrieve(referenciaIntent);
+    confirmadoNaStripe = intent.status === 'requires_capture' || intent.status === 'succeeded';
+  }
+  if (!confirmadoNaStripe) {
     // completed com pix ainda não pago: espera o async_payment_succeeded.
     return NextResponse.json({ recebido: true });
   }
@@ -63,8 +79,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ erro: 'sem_order_id_no_metadata' }, { status: 400 });
   }
 
-  const referencia =
-    typeof sessao.payment_intent === 'string' ? sessao.payment_intent : sessao.payment_intent?.id ?? sessao.id;
+  const referencia = referenciaIntent ?? sessao.id;
 
   const { data: confirmado } = await servico.rpc('fn_confirmar_pagamento_pedido', {
     p_order_id: orderId,

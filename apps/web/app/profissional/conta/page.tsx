@@ -21,6 +21,7 @@ export default function ContaProfissional() {
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
+  const [chatExpandido, setChatExpandido] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -36,6 +37,7 @@ export default function ContaProfissional() {
       setDocumento(data?.document ?? '');
       setServicos(data?.skills ?? []);
       setStatusCredenciamento(data?.accreditation_status ?? 'pending');
+      setChatExpandido(data?.accreditation_status !== 'approved');
       setCarregando(false);
     })();
   }, [perfil.id]);
@@ -100,18 +102,44 @@ export default function ContaProfissional() {
         onEnviado={() => setStatusCredenciamento('in_review')}
       />
 
-      <section className="cartao p-6">
-        <h2 className="mb-1 text-lg font-bold">Fale com a administração</h2>
-        <p className="mb-4 text-sm text-tinta-50">
-          Use esse chat para combinar o treinamento de limpeza e tirar dúvidas sobre o credenciamento.
-        </p>
-        <ChatCredenciamento
-          professionalId={perfil.id}
-          meuId={perfil.id}
-          meuNome={perfil.full_name}
-          outroNome="Administração"
-        />
-      </section>
+      {statusCredenciamento === 'approved' && !chatExpandido ? (
+        <section className="cartao flex flex-wrap items-center justify-between gap-3 p-6">
+          <div className="flex items-center gap-3">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-verde-50 text-verde-700">
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M5 13l4 4L19 7" />
+              </svg>
+            </span>
+            <div>
+              <p className="font-bold">Conversa com a administração</p>
+              <p className="text-xs text-tinta-50">Credenciamento aprovado — histórico da conversa fica salvo.</p>
+            </div>
+          </div>
+          <button onClick={() => setChatExpandido(true)} className="btn-contorno !px-3 !py-1.5 !text-[11px]">
+            Abrir conversa
+          </button>
+        </section>
+      ) : (
+        <section className="cartao p-6">
+          <div className="mb-1 flex items-center justify-between gap-3">
+            <h2 className="text-lg font-bold">Fale com a administração</h2>
+            {statusCredenciamento === 'approved' && (
+              <button onClick={() => setChatExpandido(false)} className="text-xs font-bold text-tinta-50 underline">
+                Minimizar
+              </button>
+            )}
+          </div>
+          <p className="mb-4 text-sm text-tinta-50">
+            Use esse chat para combinar o treinamento de limpeza e tirar dúvidas sobre o credenciamento.
+          </p>
+          <ChatCredenciamento
+            professionalId={perfil.id}
+            meuId={perfil.id}
+            meuNome={perfil.full_name}
+            outroNome="Administração"
+          />
+        </section>
+      )}
 
       <ContaAcesso email={perfil.email} />
 
