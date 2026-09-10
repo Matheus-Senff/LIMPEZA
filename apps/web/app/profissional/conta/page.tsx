@@ -22,6 +22,9 @@ export default function ContaProfissional() {
   const [salvando, setSalvando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
   const [chatExpandido, setChatExpandido] = useState(false);
+  const [pixKey, setPixKey] = useState('');
+  const [salvandoPix, setSalvandoPix] = useState(false);
+  const [avisoPix, setAvisoPix] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -31,13 +34,14 @@ export default function ContaProfissional() {
       }
       const { data } = await supabase
         .from('professionals')
-        .select('document, skills, accreditation_status')
+        .select('document, skills, accreditation_status, pix_key')
         .eq('id', perfil.id)
         .maybeSingle();
       setDocumento(data?.document ?? '');
       setServicos(data?.skills ?? []);
       setStatusCredenciamento(data?.accreditation_status ?? 'pending');
       setChatExpandido(data?.accreditation_status !== 'approved');
+      setPixKey(data?.pix_key ?? '');
       setCarregando(false);
     })();
   }, [perfil.id]);
@@ -57,6 +61,19 @@ export default function ContaProfissional() {
     ]);
     setSalvando(false);
     setAviso(r1.error || r2.error ? 'Não foi possível salvar.' : 'Dados atualizados.');
+  }
+
+  async function salvarPix(e: React.FormEvent) {
+    e.preventDefault();
+    if (!supabase) return;
+    setSalvandoPix(true);
+    setAvisoPix(null);
+    const { error } = await supabase
+      .from('professionals')
+      .update({ pix_key: pixKey.trim() || null })
+      .eq('id', perfil.id);
+    setSalvandoPix(false);
+    setAvisoPix(error ? 'Não foi possível salvar.' : 'Chave Pix atualizada.');
   }
 
   if (carregando) return <main className="container-app py-10 text-sm text-tinta-50">Carregando…</main>;
@@ -92,6 +109,27 @@ export default function ContaProfissional() {
           {aviso && <p className="text-sm font-semibold text-tinta">{aviso}</p>}
           <button className="btn-primario w-fit" disabled={salvando}>
             {salvando ? 'Salvando…' : 'Salvar'}
+          </button>
+        </form>
+      </section>
+
+      <section className="cartao p-6">
+        <h2 className="mb-1 text-lg font-bold">Onde você recebe</h2>
+        <p className="mb-4 text-sm text-tinta-50">
+          Cadastre sua chave Pix — é pra onde a administração transfere o valor dos serviços que
+          você concluir.
+        </p>
+        <form onSubmit={salvarPix} className="flex flex-col gap-3">
+          <input
+            className="campo"
+            value={pixKey}
+            onChange={(e) => setPixKey(e.target.value)}
+            placeholder="CPF, e-mail, celular ou chave aleatória"
+            aria-label="Chave Pix"
+          />
+          {avisoPix && <p className="text-sm font-semibold text-tinta">{avisoPix}</p>}
+          <button className="btn-primario w-fit" disabled={salvandoPix}>
+            {salvandoPix ? 'Salvando…' : 'Salvar chave Pix'}
           </button>
         </form>
       </section>
