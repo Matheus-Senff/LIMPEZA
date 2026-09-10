@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { aplicarTema, lerTemaAtual, type Tema } from '@/lib/tema';
 
-export function AlternarTema() {
+export function AlternarTema({ comContorno = false }: { comContorno?: boolean }) {
   const [tema, setTema] = useState<Tema>('claro');
 
   useEffect(() => {
@@ -19,7 +19,9 @@ export function AlternarTema() {
   return (
     <button
       onClick={alternar}
-      className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-tinta-50 transition hover:bg-tinta-5 hover:text-tinta"
+      className={`grid h-9 w-9 shrink-0 place-items-center rounded-full text-tinta-50 transition hover:text-tinta ${
+        comContorno ? 'border border-tinta-20 hover:border-tinta-30' : 'hover:bg-tinta-5'
+      }`}
       aria-label={tema === 'claro' ? 'Ativar modo escuro' : 'Ativar modo claro'}
       title={tema === 'claro' ? 'Modo escuro' : 'Modo claro'}
     >

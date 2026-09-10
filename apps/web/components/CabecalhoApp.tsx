@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Logo } from './Marca';
 import { supabase } from '@/lib/supabase';
 import { AlternarTema } from './AlternarTema';
 import { buscarPapeis, buscarPerfil } from '@/lib/perfil';
@@ -65,7 +64,6 @@ export function CabecalhoApp({ papel }: { papel: 'customer' | 'professional' | '
     <header className="sticky top-0 z-40 border-b border-tinta-10 bg-superficie/95 backdrop-blur">
       <div className="container-app flex h-16 items-center justify-between gap-6">
         <div className="flex items-center gap-8">
-          <Logo compacto />
           <nav className="hidden items-center gap-6 sm:flex">
             {NAV[papel].map((item) => (
               <Link key={item.href} href={item.href} className="text-sm font-semibold text-tinta-70 transition hover:text-tinta">
@@ -94,11 +92,11 @@ export function CabecalhoApp({ papel }: { papel: 'customer' | 'professional' | '
           )}
           <button
             onClick={sair}
-            className="flex h-9 items-center rounded-full px-3 text-sm font-semibold leading-none text-tinta-50 transition hover:text-tinta"
+            className="flex h-9 items-center rounded-full border border-tinta-20 px-3 text-sm font-semibold leading-none text-tinta-70 transition hover:border-tinta-30 hover:text-tinta"
           >
             Sair
           </button>
-          <AlternarTema />
+          <AlternarTema comContorno />
         </div>
       </div>
 

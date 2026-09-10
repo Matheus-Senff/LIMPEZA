@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PLANOS, horas, reais, type FrequencyCode, type Servico } from '@/lib/catalogo';
 import { RULESET_PADRAO } from '@/lib/rulesetPadrao';
@@ -54,8 +53,7 @@ export function Funil({
   frequenciaInicial?: string;
   perfil: PerfilCliente;
 }) {
-  const router = useRouter();
-  const { servicos: SERVICOS, opcionais: OPCIONAIS } = useCatalogo();
+  const { opcionais: OPCIONAIS } = useCatalogo();
 
   // ---------------------------------------------------------------- estado
   const [passo, setPasso] = useState<Passo>(1);
@@ -329,58 +327,9 @@ export function Funil({
       <div className="flex flex-col gap-4">
         {/* ------------------------------------------------------- passo 1 */}
         <section className="cartao p-6">
-          <Cabecalho n={1} titulo="Escolha um serviço" ativo={passo === 1} />
+          <Cabecalho n={1} titulo="Seu lar e endereço" ativo={passo === 1} />
           {passo === 1 && (
             <div className="mt-6 flex animate-entrada flex-col gap-8">
-              <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2 sem-barra">
-                {SERVICOS.filter((s) => s.code !== 'HOME_ASSISTANCE').map((s) => {
-                  const ativo = s.slug === servico.slug;
-                  return (
-                    <button
-                      key={s.slug}
-                      onClick={() => router.push(`/cliente/contratar/${s.slug}`)}
-                      className={`relative w-[124px] shrink-0 overflow-hidden rounded-xl border-2 text-left transition ${
-                        ativo ? 'border-tinta shadow-cartao' : 'border-tinta-10 hover:border-tinta-20'
-                      }`}
-                    >
-                      <span className="grid h-16 place-items-center">
-                        <IconeServico tipo={s.slug as TipoIcone} />
-                      </span>
-                      <span className="block whitespace-pre-line px-2 py-2 text-[11px] font-bold leading-tight">
-                        {s.nomeCurto}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="rounded-xl bg-tinta-5 p-4 text-sm text-tinta-70">
-                {servico.descricao}
-                <details className="mt-3">
-                  <summary className="cursor-pointer text-xs font-bold uppercase tracking-wide text-azul-600">
-                    Ver o que está incluso
-                  </summary>
-                  <div className="mt-3 grid gap-4 sm:grid-cols-2">
-                    <ul className="flex flex-col gap-1.5">
-                      {servico.incluso.map((i) => (
-                        <li key={i} className="flex gap-2 text-xs">
-                          <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-verde-500" />
-                          {i}
-                        </li>
-                      ))}
-                    </ul>
-                    <ul className="flex flex-col gap-1.5">
-                      {servico.naoIncluso.map((i) => (
-                        <li key={i} className="flex gap-2 text-xs text-tinta-50">
-                          <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-tinta-20" />
-                          {i}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </details>
-              </div>
-
               <div>
                 <h3 className="text-base font-bold">Como é seu lar?</h3>
                 <p className="mb-4 text-sm text-tinta-50">

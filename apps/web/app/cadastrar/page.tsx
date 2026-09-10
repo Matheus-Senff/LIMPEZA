@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Logo } from '@/components/Marca';
 import { supabase, supabaseConfigurado } from '@/lib/supabase';
 import { buscarPapeis, buscarPerfil, ROTA_POR_PAPEL, type PapelUsuario } from '@/lib/perfil';
 import { useCatalogo } from '@/lib/useCatalogo';
@@ -225,9 +224,11 @@ export default function Cadastrar() {
 
   return (
     <main className="grid min-h-screen place-items-center bg-tinta-5 px-5 py-10">
-      <div className="w-full max-w-sm">
+      <div className="w-full max-w-md">
         <div className="mb-8 flex justify-center">
-          <Logo />
+          <span className="text-[34px] font-extrabold tracking-tight text-tinta">
+            Plano<span className="texto-degrade">Limpo</span>
+          </span>
         </div>
 
         <div className="cartao p-7">
