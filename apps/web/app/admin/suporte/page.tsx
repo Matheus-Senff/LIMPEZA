@@ -22,6 +22,8 @@ export default function AdminSuporte() {
   const [filtro, setFiltro] = useState<'abertos' | 'todos'>('abertos');
   const [carregando, setCarregando] = useState(true);
   const [selecionado, setSelecionado] = useState<ChamadoAdmin | null>(null);
+  const [statusPendente, setStatusPendente] = useState<StatusChamado | null>(null);
+  const [aplicandoStatus, setAplicandoStatus] = useState(false);
 
   async function carregar() {
     if (!supabase) {
@@ -45,6 +47,14 @@ export default function AdminSuporte() {
     await supabase.from('support_tickets').update({ status }).eq('id', id);
     setSelecionado((atual) => (atual && atual.id === id ? { ...atual, status } : atual));
     await carregar();
+  }
+
+  async function confirmarMudancaStatus() {
+    if (!selecionado || !statusPendente) return;
+    setAplicandoStatus(true);
+    await mudarStatus(selecionado.id, statusPendente);
+    setAplicandoStatus(false);
+    setStatusPendente(null);
   }
 
   const filtrados = filtro === 'todos' ? chamados : chamados.filter((c) => c.status !== 'closed' && c.status !== 'resolved');
@@ -115,23 +125,68 @@ export default function AdminSuporte() {
       </div>
 
       {selecionado && (
-        <Modal titulo={selecionado.subject} onFechar={() => setSelecionado(null)}>
+        <Modal
+          titulo={selecionado.subject}
+          onFechar={() => {
+            setSelecionado(null);
+            setStatusPendente(null);
+          }}
+        >
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <span className="text-xs text-tinta-50">
               {selecionado.requester?.full_name} · {selecionado.requester?.email}
             </span>
           </div>
           <ChamadoSuporte ticketId={selecionado.id} meuId={perfil.id} souAdmin />
-          <div className="mt-4 flex flex-wrap gap-2 border-t border-tinta-10 pt-4">
-            <button onClick={() => mudarStatus(selecionado.id, 'in_progress')} className="btn-contorno !px-3 !py-1.5 !text-[11px]">
-              Em andamento
-            </button>
-            <button onClick={() => mudarStatus(selecionado.id, 'resolved')} className="btn-verde !px-3 !py-1.5 !text-[11px]">
-              Marcar resolvido
-            </button>
-            <button onClick={() => mudarStatus(selecionado.id, 'closed')} className="btn-contorno !px-3 !py-1.5 !text-[11px]">
-              Fechar chamado
-            </button>
+
+          <div className="mt-4 border-t border-tinta-10 pt-4">
+            <div className="mb-3 flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wide text-tinta-50">Status atual</span>
+              <span className={`rounded-full px-3 py-1 text-sm font-bold ${COR_STATUS_CHAMADO[selecionado.status]}`}>
+                {ROTULO_STATUS_CHAMADO[selecionado.status]}
+              </span>
+            </div>
+
+            {statusPendente ? (
+              <div className="rounded-xl border border-tinta-20 bg-tinta-5 p-4">
+                <p className="text-sm font-semibold text-tinta">
+                  Confirmar mudança de status para{' '}
+                  <span className="font-extrabold">{ROTULO_STATUS_CHAMADO[statusPendente]}</span>?
+                </p>
+                <div className="mt-3 flex gap-2">
+                  <button onClick={confirmarMudancaStatus} disabled={aplicandoStatus} className="btn-primario !px-4 !py-2 !text-xs">
+                    {aplicandoStatus ? 'Aplicando…' : 'Confirmar mudança'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStatusPendente(null)}
+                    disabled={aplicandoStatus}
+                    className="text-xs font-semibold text-tinta-50"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex gap-1 rounded-full bg-tinta-5 p-1">
+                {(Object.keys(ROTULO_STATUS_CHAMADO) as StatusChamado[])
+                  .filter((s) => s !== 'open')
+                  .map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => setStatusPendente(s)}
+                      disabled={s === selecionado.status}
+                      className={`flex-1 rounded-full px-3 py-1.5 text-xs font-bold transition disabled:cursor-default disabled:opacity-40 ${
+                        s === selecionado.status
+                          ? 'bg-superficie text-tinta shadow-cartao'
+                          : 'text-tinta-50 hover:text-tinta'
+                      }`}
+                    >
+                      {ROTULO_STATUS_CHAMADO[s]}
+                    </button>
+                  ))}
+              </div>
+            )}
           </div>
         </Modal>
       )}
