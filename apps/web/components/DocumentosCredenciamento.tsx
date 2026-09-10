@@ -77,6 +77,7 @@ export function DocumentosCredenciamento({
   }
 
   const todosEnviados = CAMPOS.every((c) => arquivos[c.chave]);
+  const envioBloqueado = status === 'in_review' || status === 'approved';
 
   if (carregando) return null;
 
@@ -128,20 +129,32 @@ export function DocumentosCredenciamento({
               <p className="text-sm font-semibold">{c.rotulo}</p>
               <p className="text-xs text-tinta-50">{arquivos[c.chave] ? 'Enviado' : 'Pendente'}</p>
             </div>
-            <label className="btn-contorno cursor-pointer !px-3 !py-1.5 !text-[11px]">
-              {enviando === c.chave ? 'Enviando…' : arquivos[c.chave] ? 'Substituir' : 'Enviar'}
-              <input
-                type="file"
-                accept="image/*,.pdf"
-                className="hidden"
-                disabled={enviando !== null || status === 'in_review' || status === 'approved'}
-                onChange={(e) => {
-                  const arquivo = e.target.files?.[0];
-                  if (arquivo) enviarArquivo(c.chave, arquivo);
-                  e.target.value = '';
-                }}
-              />
-            </label>
+            {status === 'approved' ? (
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-verde-50 text-verde-700">
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M5 13l4 4L19 7" />
+                </svg>
+              </span>
+            ) : (
+              <label
+                className={`btn-contorno !px-3 !py-1.5 !text-[11px] ${
+                  envioBloqueado ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'
+                }`}
+              >
+                {enviando === c.chave ? 'Enviando…' : arquivos[c.chave] ? 'Substituir' : 'Enviar'}
+                <input
+                  type="file"
+                  accept="image/*,.pdf"
+                  className="hidden"
+                  disabled={enviando !== null || envioBloqueado}
+                  onChange={(e) => {
+                    const arquivo = e.target.files?.[0];
+                    if (arquivo) enviarArquivo(c.chave, arquivo);
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+            )}
           </div>
         ))}
       </div>
